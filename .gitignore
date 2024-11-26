@@ -1,0 +1,10 @@
+build
+builddir
+
+# Ignore downloaded or built subprojects
+subprojects/*
+# but specifcally allow configuration files
+!subprojects/meson.build
+!subprojects/*.wrap
+
+.vscode

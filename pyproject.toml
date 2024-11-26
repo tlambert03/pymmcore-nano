@@ -1,0 +1,14 @@
+[build-system]
+requires = ['meson-python']
+build-backend = 'mesonpy'
+
+[project]
+name = "nano-pymmcore"
+requires-python = ">=3.10"
+dynamic = ['version']
+description = "CMMCore wrapper for Python, using nanobind"
+readme = "README.md"
+dependencies = []
+
+[dependency-groups]
+dev = ["ipython>=8.29.0", "pytest"]
