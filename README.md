@@ -1,19 +1,15 @@
-pip install meson-python ninja build
+git checkout ...
 
-mkdir -p subprojects
-meson wrap install robin-map
-meson wrap install nanobind
+make sure you have uv installed, if not: <https://docs.astral.sh/uv/getting-started/installation/>
 
+### create environment and install in editable mode
 
-rm -rf builddir
-export CXX=/opt/homebrew/opt/llvm/bin/clang++
-export LDFLAGS="-L/opt/homebrew/opt/llvm/lib -Wl"
-meson setup builddir
-meson compile -C builddir
+```sh
+make install
+```
 
-rm -rf builddir
-export CXX=/usr/bin/c++
-export CXXFLAGS="-isystem /Library/Developer/CommandLineTools/usr/include/c++/v1"
-export LDFLAGS="-L/Library/Developer/CommandLineTools/usr/lib -Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib"
-meson setup builddir
-meson compile -C builddir
+### test
+
+```sh
+make test
+```

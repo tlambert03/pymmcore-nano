@@ -3,7 +3,7 @@ requires = ['meson-python']
 build-backend = 'mesonpy'
 
 [project]
-name = "nano-pymmcore"
+name = "pymmcore-nano"
 requires-python = ">=3.10"
 dynamic = ['version']
 description = "CMMCore wrapper for Python, using nanobind"
@@ -11,4 +11,16 @@ readme = "README.md"
 dependencies = []
 
 [dependency-groups]
-dev = ["ipython>=8.29.0", "pytest"]
+dev = [
+    "ipython>=8.29.0",
+    "meson-python>=0.17.1",
+    "ninja>=1.11.1.2",
+    "pre-commit>=4.0.1",
+    "pytest",
+]
+
+# https://docs.pytest.org/
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+filterwarnings = ["error"]
