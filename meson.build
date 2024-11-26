@@ -9,31 +9,59 @@ py = import('python').find_installation()
 nanobind_dep = dependency('nanobind', static: true)
 
 
+# ---------- dynamically gather sources and include dirs ----------
+
+print_include_dirs = '''
+import pathlib
+m = pathlib.Path('extern/mmCoreAndDevices')
+headers = (*(m/'MMDevice').rglob('*.h'), *(m/'MMCore').rglob('*.h'))
+print(';'.join({str(x.parent) for x in headers}))
+'''
+include_dirs_list = run_command(py.full_path(), '-c', print_include_dirs, check: true).stdout().strip().split(';')
+include_dirs = include_directories(include_dirs_list, is_system: true)
+foreach dir : include_dirs_list
+    message('Include dir: ' + dir)
+endforeach
+
+print_sources = '''
+import pathlib
+m = pathlib.Path('extern/mmCoreAndDevices')
+sources = (*(m/'MMDevice').rglob('*.cpp'), *(m/'MMCore').rglob('*.cpp'))
+print(';'.join({str(x) for x in sources if 'unittest' not in str(x)}))
+'''
+cpp_sources = run_command(py.full_path(), '-c', print_sources, check: true).stdout().strip().split(';')
+
+foreach src : cpp_sources
+    message('Including source: ' + src)
+endforeach
+
 # ---------- patch c++14 to c++17 ----------
 
-patch_script = files('patch_c14_c17.py')
+run_command(py.full_path(), 'patch_c14_c17.py', check: true)
 
-# List of files to patch
-patched_files = [
-    'extern/mmCoreAndDevices/MMCore/Configuration.h',
-    'extern/mmCoreAndDevices/MMCore/MMCore.h'
-]
+# --------------------------
 
-# Patch the files during the configure step
-foreach file : patched_files
-    run_command(py.full_path(), patch_script[0], file)
-endforeach
+cpp_args = ['-DMMDEVICE_CLIENT_BUILD']
+
+if host_machine.system() == 'windows'
+  cpp_args += ['-DNOMINMAX', '-D_CRT_SECURE_NO_WARNINGS']
+endif
 
 py.extension_module(
     '_pymmcore_nano',
-    sources: ['src/_pymmcore_nano.cc'],
+    sources: ['src/_pymmcore_nano.cc'] + cpp_sources,
     dependencies: [nanobind_dep],
-    include_directories: ['extern/mmCoreAndDevices/MMCore', '.'],
+    include_directories: include_dirs,
     install: true,
+    cpp_args: cpp_args,
 )
 
 # install the Python package into the site-packages directory
-install_subdir('src/pymmcore_nano', install_dir: py.get_install_dir() / 'pymmcore_nano', strip_directory: true)
+install_subdir(
+    'src/pymmcore_nano',
+    install_dir: py.get_install_dir() / 'pymmcore_nano',
+    strip_directory: true,
+)
 
 test('test_script',
     py,

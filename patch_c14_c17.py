@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 import re
 
 THROW_CMMERROR_RE = re.compile(r"throw\s*\(CMMError\)")
@@ -15,7 +14,9 @@ def patch_file(file_path: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python patch_throw_to_noexcept.py <file_path>")
-        sys.exit(1)
-    patch_file(sys.argv[1])
+    root = Path(__file__).parent / "extern" / "mmCoreAndDevices"
+    for file in root.glob("**/*.cpp"):
+        patch_file(str(file))
+    for file in root.glob("**/*.h"):
+        patch_file(str(file))
+    # patch_file(sys.argv[1])

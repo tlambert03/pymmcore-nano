@@ -1,3 +1,3 @@
-from _pymmcore_nano import add
+from _pymmcore_nano import *  # noqa
 
-__all__ = ["add"]
+__all__ = ["add"]  # noqa
