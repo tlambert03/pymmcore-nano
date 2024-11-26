@@ -6,6 +6,7 @@ BUILDDIR := $(shell ls -d build/cp3* 2>/dev/null | head -n 1)
 # editable install
 install:
 	make clean
+	git submodule update --init --recursive
 	uv sync
 	uv pip install -e . \
 		--no-build-isolation \
@@ -31,7 +32,7 @@ test:
 
 # clean up build artifacts
 clean:
-	rm -rf build dist
+	rm -rf build dist builddir
 	rm -rf coverage.info coverage.xml coverage_cpp.xml
 
 coverage:
