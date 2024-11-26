@@ -1,4 +1,13 @@
-git checkout ...
+# pymmcore-nano
+
+Experimental python bindings for CMMCore using nanobind.
+
+### Setup
+
+```sh
+git clone https://github.com/tlambert03/nano-pymmcore.git
+git submodule update --init --recursive
+```
 
 make sure you have uv installed, if not: <https://docs.astral.sh/uv/getting-started/installation/>
 
