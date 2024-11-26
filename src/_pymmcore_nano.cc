@@ -1,4 +1,5 @@
 #include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
 #include "MMCore.h"
 
@@ -57,6 +58,7 @@ NB_MODULE(_pymmcore_nano, m) {
   //////////////////// MMCore ////////////////////
 
   nb::class_<CMMCore>(m, "CMMCore")
+      .def(nb::init<>())
       .def("getVersionInfo", &CMMCore::getVersionInfo)
       .def("getAPIVersion", &CMMCore::getAPIVersionInfo);
 

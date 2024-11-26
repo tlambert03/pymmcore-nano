@@ -7,3 +7,6 @@ def test_add():
 
 def test_enums():
     assert pmn.DeviceType.CameraDevice.value == 2
+
+    core = pmn.CMMCore()
+    assert core.getVersionInfo().startswith("MMCore version")

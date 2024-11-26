@@ -10,9 +10,7 @@ install:
 	uv pip install -e . \
 		--no-build-isolation \
 		--force-reinstall \
-		--config-settings=editable-verbose=true \
-		# --config-settings=setup-args="-Db_coverage=true" \
-		--config-settings=compile-args="-j8"
+		--config-settings=editable-verbose=true
 
 # quick build after having already setup the build directory
 build:
