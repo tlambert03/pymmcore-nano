@@ -5,7 +5,7 @@ Experimental python bindings for CMMCore using nanobind.
 ### Setup
 
 ```sh
-git clone https://github.com/tlambert03/nano-pymmcore.git
+git clone https://github.com/pymmcore-plus/pymmcore-nano.git
 git submodule update --init --recursive
 ```
 
