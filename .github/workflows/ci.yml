@@ -34,10 +34,4 @@ jobs:
           enable-cache: true
 
       - name: install and test
-        shell: bash
-        run: |
-          # this works, but is probably wrong
-          uv sync --all-extras
-          . .venv/bin/activate
-          uv pip install .
-          pytest -v --color=yes
+        run: uv run --no-editable --frozen pytest
