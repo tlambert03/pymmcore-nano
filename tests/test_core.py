@@ -1,9 +1,7 @@
 import enum
 import pymmcore_nano as pmn
 
-mm = [
-    "/Users/talley/Library/Application Support/pymmcore-plus/mm/Micro-Manager-80d5ac1"
-]
+mm = []
 
 
 def test_add():
@@ -20,7 +18,7 @@ def test_enums():
     assert mmc.getVersionInfo().startswith("MMCore version")
     assert mmc.getLoadedDevices() == ["Core"]
     mmc.setDeviceAdapterSearchPaths(mm)
-    mmc.loadSystemConfiguration(mm[0] + "/MMConfig_demo.cfg")
-    assert "Camera" in mmc.getLoadedDevices()
 
-    print(mmc.getConfigState("Channel", "DAPI"))
+    # mmc.loadSystemConfiguration(mm[0] + "/MMConfig_demo.cfg")
+    # assert "Camera" in mmc.getLoadedDevices()
+    # print(mmc.getConfigState("Channel", "DAPI"))

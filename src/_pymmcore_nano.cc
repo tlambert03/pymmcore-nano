@@ -46,16 +46,21 @@ NB_MODULE(_pymmcore_nano, m) {
       .value("Float", MM::PropertyType::Float)
       .value("Integer", MM::PropertyType::Integer);
 
-  nb::enum_<MM::FocusDirection>(m, "FocusDirection")
+  nb::enum_<MM::FocusDirection>(m, "FocusDirection", nb::is_arithmetic())
       .value("FocusDirectionUnknown", MM::FocusDirection::FocusDirectionUnknown)
       .value("FocusDirectionTowardSample", MM::FocusDirection::FocusDirectionTowardSample)
       .value("FocusDirectionAwayFromSample", MM::FocusDirection::FocusDirectionAwayFromSample);
 
-  nb::enum_<MM::PortType>(m, "PortType")
+  nb::enum_<MM::PortType>(m, "PortType", nb::is_arithmetic())
       .value("InvalidPort", MM::PortType::InvalidPort)
       .value("SerialPort", MM::PortType::SerialPort)
       .value("USBPort", MM::PortType::USBPort)
       .value("HIDPort", MM::PortType::HIDPort);
+
+  nb::enum_<DeviceInitializationState>(m, "DeviceInitializationState", nb::is_arithmetic())
+      .value("CoreIdle", DeviceInitializationState::Uninitialized)
+      .value("CoreBusy", DeviceInitializationState::InitializedSuccessfully)
+      .value("CoreError", DeviceInitializationState::InitializationFailed);
 
   //////////////////// Supporting classes ////////////////////
 
@@ -73,7 +78,6 @@ NB_MODULE(_pymmcore_nano, m) {
   nb::class_<CMMCore>(m, "CMMCore")
       .def(nb::init<>())
 
-      .def("setDeviceAdapterSearchPaths", &CMMCore::setDeviceAdapterSearchPaths, "paths"_a)
       .def("loadSystemConfiguration", &CMMCore::loadSystemConfiguration, "fileName"_a)
       .def("saveSystemConfiguration", &CMMCore::saveSystemConfiguration, "fileName"_a)
       .def_static("enableFeature", &CMMCore::enableFeature, "name"_a, "enable"_a)
@@ -136,9 +140,6 @@ NB_MODULE(_pymmcore_nano, m) {
            "label"_a, "propName"_a, "propValue"_a)
       .def("setProperty",
            nb::overload_cast<const char*, const char*, float>(&CMMCore::setProperty), "label"_a,
-           "propName"_a, "propValue"_a)
-      .def("setProperty",
-           nb::overload_cast<const char*, const char*, double>(&CMMCore::setProperty), "label"_a,
            "propName"_a, "propValue"_a)
       .def("getAllowedPropertyValues", &CMMCore::getAllowedPropertyValues, "label"_a, "propName"_a)
       .def("isPropertyReadOnly", &CMMCore::isPropertyReadOnly, "label"_a, "propName"_a)

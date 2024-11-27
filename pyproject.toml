@@ -1,5 +1,5 @@
 [build-system]
-requires = ['meson-python']
+requires = ['meson-python', 'mypy']  # mypy is for stubgen
 build-backend = 'mesonpy'
 
 [project]
