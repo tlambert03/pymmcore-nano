@@ -15,7 +15,7 @@ NB_MODULE(_pymmcore_nano, m) {
 
   /////////////////// Enums ///////////////////
 
-  nb::enum_<MM::DeviceType>(m, "DeviceType")
+  nb::enum_<MM::DeviceType>(m, "DeviceType", nb::is_arithmetic())
       .value("UnknownType", MM::DeviceType::UnknownType)
       .value("AnyType", MM::DeviceType::AnyType)
       .value("CameraDevice", MM::DeviceType::CameraDevice)
@@ -34,13 +34,13 @@ NB_MODULE(_pymmcore_nano, m) {
       .value("HubDevice", MM::DeviceType::HubDevice)
       .value("GalvoDevice", MM::DeviceType::GalvoDevice);
 
-  nb::enum_<MM::DeviceDetectionStatus>(m, "DeviceDetectionStatus")
+  nb::enum_<MM::DeviceDetectionStatus>(m, "DeviceDetectionStatus", nb::is_arithmetic())
       .value("Misconfigured", MM::DeviceDetectionStatus::Misconfigured)
       .value("Unimplemented", MM::DeviceDetectionStatus::Unimplemented)
       .value("CanNotCommunicate", MM::DeviceDetectionStatus::CanNotCommunicate)
       .value("CanCommunicate", MM::DeviceDetectionStatus::CanCommunicate);
 
-  nb::enum_<MM::PropertyType>(m, "PropertyType")
+  nb::enum_<MM::PropertyType>(m, "PropertyType", nb::is_arithmetic())
       .value("Undef", MM::PropertyType::Undef)
       .value("String", MM::PropertyType::String)
       .value("Float", MM::PropertyType::Float)

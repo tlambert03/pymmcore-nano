@@ -1,3 +1,4 @@
+import enum
 import pymmcore_nano as pmn
 
 mm = [
@@ -10,7 +11,10 @@ def test_add():
 
 
 def test_enums():
-    assert pmn.DeviceType.CameraDevice.value == 2
+    assert pmn.DeviceType.CameraDevice == 2
+    assert isinstance(pmn.DeviceType.CameraDevice, enum.IntEnum)
+    assert pmn.DeviceDetectionStatus.Unimplemented == -2
+    assert isinstance(pmn.DeviceDetectionStatus.Unimplemented, enum.IntEnum)
 
     mmc = pmn.CMMCore()
     assert mmc.getVersionInfo().startswith("MMCore version")
@@ -19,4 +23,4 @@ def test_enums():
     mmc.loadSystemConfiguration(mm[0] + "/MMConfig_demo.cfg")
     assert "Camera" in mmc.getLoadedDevices()
 
-    print(mmc.getConfigState('Channel', 'DAPI'))
+    print(mmc.getConfigState("Channel", "DAPI"))
