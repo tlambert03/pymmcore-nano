@@ -33,13 +33,9 @@ jobs:
           version: "0.5.4"
           enable-cache: true
 
-      - name: setup env
+      - name: install and test
         run: |
           uv sync --all-extras
           . .venv/bin/activate
-
-      - name: install
-        run: uv pip install .
-
-      - name: test
-        run: pytest -v --color=yes
+          uv pip install .
+          pytest -v --color=yes
