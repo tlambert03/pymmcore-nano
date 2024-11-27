@@ -26,6 +26,10 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          toolset: "14.2"
 
       - name: Install a specific version of uv
         uses: astral-sh/setup-uv@v3
