@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
-        platform: [windows-latest, ubuntu-latest]
+        platform: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
