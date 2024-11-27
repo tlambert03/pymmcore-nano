@@ -55,19 +55,29 @@ ext_module = py.extension_module(
     cpp_args: cpp_args,
 )
 
-# create stubs
-stubgen = find_program('stubgen')
+# Create stubs using nanobind.stubgen
 stubs = custom_target(
     'generate_stubs',
     build_by_default: true,
     input: [ext_module],
     output: '_pymmcore_nano.pyi',
     command: [
-        stubgen,
-        '--package', '_pymmcore_nano',
-        '-o', meson.project_source_root() + '/src'
+        'python', '-m', 'nanobind.stubgen',
+        '--module', '_pymmcore_nano',
+        '--output-dir', meson.project_source_root() + '/src',
     ],
     depends: ext_module,
+)
+# Format stubs with ruff
+formatted_stubs = custom_target(
+    'format_stubs',
+    build_by_default: true,
+    input: [stubs],  # Explicitly depend on the output of the stubs target
+    output: '_pymmcore_nano_formatted.pyi',
+    command: [
+        'ruff', 'format', meson.project_source_root() + '/src/_pymmcore_nano.pyi',
+    ],
+    depends: stubs,  # Ensure it only runs after stubs are generated
 )
 
 # install the Python package into the site-packages directory

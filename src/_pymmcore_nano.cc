@@ -1,4 +1,5 @@
 #include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
@@ -10,6 +11,8 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 NB_MODULE(_pymmcore_nano, m) {
+  m.doc() = "Python bindings for MMCore";
+
   // define module level attributes
   m.attr("DEVICE_INTERFACE_VERSION") = DEVICE_INTERFACE_VERSION;
 
@@ -69,6 +72,11 @@ NB_MODULE(_pymmcore_nano, m) {
       // Add any methods or properties for Configuration here
       ;
 
+  nb::class_<Metadata>(m, "Metadata")
+      .def(nb::init<>())  // Assuming it has a default constructor
+                          // Add any methods or properties for Configuration here
+      ;
+
   nb::class_<MMEventCallback>(m, "MMEventCallback")
       .def(nb::init<>())  // Assuming it has a default constructor
       // Add any methods or properties for MMEventCallback here
@@ -78,7 +86,14 @@ NB_MODULE(_pymmcore_nano, m) {
   nb::class_<CMMCore>(m, "CMMCore")
       .def(nb::init<>())
 
-      .def("loadSystemConfiguration", &CMMCore::loadSystemConfiguration, "fileName"_a)
+      // accept any object that can be cast to a string, so as to support Path objects
+      .def(
+          "loadSystemConfiguration",
+          [](CMMCore& self, nb::object fileName) {
+            self.loadSystemConfiguration(nb::str(fileName).c_str());  // convert to string
+          },
+          "fileName"_a)
+
       .def("saveSystemConfiguration", &CMMCore::saveSystemConfiguration, "fileName"_a)
       .def_static("enableFeature", &CMMCore::enableFeature, "name"_a, "enable"_a)
       .def_static("isFeatureEnabled", &CMMCore::isFeatureEnabled, "name"_a)
@@ -169,39 +184,6 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("getTimeoutMs", &CMMCore::getTimeoutMs)
       .def("sleep", &CMMCore::sleep, "intervalMs"_a)
 
-      //  Configuration getSystemStateCache() const;
-      //  void updateSystemStateCache();
-      //  std::string getPropertyFromCache(const char* deviceLabel,
-      //        const char* propName) const noexcept(false);
-      //  std::string getCurrentConfigFromCache(const char* groupName) noexcept(false);
-      //  Configuration getConfigGroupStateFromCache(const char* group) noexcept(false);
-      //  ///@}
-
-      //  /** \name Configuration groups. */
-      //  ///@{
-      //  void defineConfig(const char* groupName, const char* configName) noexcept(false);
-      //  void defineConfig(const char* groupName, const char* configName,
-      //        const char* deviceLabel, const char* propName,
-      //        const char* value) noexcept(false);
-      //  void defineConfigGroup(const char* groupName) noexcept(false);
-      //  void deleteConfigGroup(const char* groupName) noexcept(false);
-      //  void renameConfigGroup(const char* oldGroupName,
-      //        const char* newGroupName) noexcept(false);
-      //  bool isGroupDefined(const char* groupName);
-      //  bool isConfigDefined(const char* groupName, const char* configName);
-      //  void setConfig(const char* groupName, const char* configName) noexcept(false);
-      //  void deleteConfig(const char* groupName, const char* configName) noexcept(false);
-      //  void deleteConfig(const char* groupName, const char* configName,
-      //        const char* deviceLabel, const char* propName) noexcept(false);
-      //  void renameConfig(const char* groupName, const char* oldConfigName,
-      //        const char* newConfigName) noexcept(false);
-      //  std::vector<std::string> getAvailableConfigGroups() const;
-      //  std::vector<std::string> getAvailableConfigs(const char* configGroup) const;
-      //  std::string getCurrentConfig(const char* groupName) noexcept(false);
-      //  Configuration getConfigData(const char* configGroup,
-      //        const char* configName) noexcept(false);
-      //  ///@}
-
       .def("getCameraDevice", &CMMCore::getCameraDevice)
       .def("getShutterDevice", &CMMCore::getShutterDevice)
       .def("getFocusDevice", &CMMCore::getFocusDevice)
@@ -280,9 +262,268 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("deletePixelSizeConfig", &CMMCore::deletePixelSizeConfig, "configName"_a)
       .def("getPixelSizeConfigData", &CMMCore::getPixelSizeConfigData, "configName"_a)
 
-      //
-      ;
+      .def("setROI", nb::overload_cast<int, int, int, int>(&CMMCore::setROI), "x"_a, "y"_a,
+           "xSize"_a, "ySize"_a)
+      .def("setROI", nb::overload_cast<const char*, int, int, int, int>(&CMMCore::setROI),
+           "label"_a, "x"_a, "y"_a, "xSize"_a, "ySize"_a)
+      .def("getROI",
+           [](CMMCore& self) {
+             int x, y, xSize, ySize;
+             self.getROI(x, y, xSize, ySize);             // Call C++ method
+             return std::make_tuple(x, y, xSize, ySize);  // Return a tuple
+           })
+      .def(
+          "getROI",
+          [](CMMCore& self, const char* label) {
+            int x, y, xSize, ySize;
+            self.getROI(label, x, y, xSize, ySize);      // Call the C++ method
+            return std::make_tuple(x, y, xSize, ySize);  // Return as Python tuple
+          },
+          "label"_a)
+      .def("clearROI", &CMMCore::clearROI)
+      .def("isMultiROISupported", &CMMCore::isMultiROISupported)
+      .def("isMultiROIEnabled", &CMMCore::isMultiROIEnabled)
+      .def("setMultiROI", &CMMCore::setMultiROI, "xs"_a, "ys"_a, "widths"_a, "heights"_a)
+      .def("getMultiROI", &CMMCore::getMultiROI, "xs"_a, "ys"_a, "widths"_a, "heights"_a)
+      .def("setExposure", nb::overload_cast<double>(&CMMCore::setExposure), "exp"_a)
+      .def("setExposure", nb::overload_cast<const char*, double>(&CMMCore::setExposure),
+           "cameraLabel"_a, "dExp"_a)
+      .def("getExposure", nb::overload_cast<>(&CMMCore::getExposure))
+      .def("getExposure", nb::overload_cast<const char*>(&CMMCore::getExposure), "label"_a)
+      .def("snapImage", &CMMCore::snapImage)
+      .def("getImage", nb::overload_cast<>(&CMMCore::getImage))
+      .def("getImage", nb::overload_cast<unsigned>(&CMMCore::getImage), "numChannel"_a)
+      .def("getImageWidth", &CMMCore::getImageWidth)
+      .def("getImageHeight", &CMMCore::getImageHeight)
+      .def("getBytesPerPixel", &CMMCore::getBytesPerPixel)
+      .def("getImageBitDepth", &CMMCore::getImageBitDepth)
+      .def("getNumberOfComponents", &CMMCore::getNumberOfComponents)
+      .def("getNumberOfCameraChannels", &CMMCore::getNumberOfCameraChannels)
+      .def("getCameraChannelName", &CMMCore::getCameraChannelName, "channelNr"_a)
+      .def("getImageBufferSize", &CMMCore::getImageBufferSize)
+      .def("setAutoShutter", &CMMCore::setAutoShutter, "state"_a)
+      .def("getAutoShutter", &CMMCore::getAutoShutter)
+      .def("setShutterOpen", nb::overload_cast<bool>(&CMMCore::setShutterOpen), "state"_a)
+      .def("getShutterOpen", nb::overload_cast<>(&CMMCore::getShutterOpen))
+      .def("setShutterOpen", nb::overload_cast<const char*, bool>(&CMMCore::setShutterOpen),
+           "shutterLabel"_a, "state"_a)
+      .def("getShutterOpen", nb::overload_cast<const char*>(&CMMCore::getShutterOpen),
+           "shutterLabel"_a)
+      .def("startSequenceAcquisition",
+           nb::overload_cast<long, double, bool>(&CMMCore::startSequenceAcquisition),
+           "numImages"_a, "intervalMs"_a, "stopOnOverflow"_a)
+      .def("startSequenceAcquisition",
+           nb::overload_cast<const char*, long, double, bool>(&CMMCore::startSequenceAcquisition),
+           "cameraLabel"_a, "numImages"_a, "intervalMs"_a, "stopOnOverflow"_a)
+      .def("prepareSequenceAcquisition", &CMMCore::prepareSequenceAcquisition, "cameraLabel"_a)
+      .def("startContinuousSequenceAcquisition", &CMMCore::startContinuousSequenceAcquisition,
+           "intervalMs"_a)
+      .def("stopSequenceAcquisition", nb::overload_cast<>(&CMMCore::stopSequenceAcquisition))
+      .def("stopSequenceAcquisition",
+           nb::overload_cast<const char*>(&CMMCore::stopSequenceAcquisition), "cameraLabel"_a)
+      .def("isSequenceRunning", nb::overload_cast<>(&CMMCore::isSequenceRunning))
+      .def("isSequenceRunning", nb::overload_cast<const char*>(&CMMCore::isSequenceRunning),
+           "cameraLabel"_a)
 
-  m.doc() = "This is a \"hello world\" example with nanobind";
-  m.def("add", [](int a, int b) { return a + b; }, "a"_a, "b"_a);
+      // Image Buffer Methods
+      .def("getLastImage", &CMMCore::getLastImage)
+      .def("popNextImage", &CMMCore::popNextImage)
+      //  .def("getLastImageMD", &CMMCore::getLastImageMD, "channel"_a, "slice"_a, "md"_a)
+      //  .def("popNextImageMD", &CMMCore::popNextImageMD, "channel"_a, "slice"_a, "md"_a)
+      //  .def("popNextImageMD", &CMMCore::popNextImageMD, "md"_a)
+      .def("getLastImageMD", nb::overload_cast<Metadata&>(&CMMCore::getLastImageMD, nb::const_),
+           "md"_a)
+      .def("getNBeforeLastImageMD", &CMMCore::getNBeforeLastImageMD, "n"_a, "md"_a)
+
+      // Circular Buffer Methods
+      .def("getRemainingImageCount", &CMMCore::getRemainingImageCount)
+      .def("getBufferTotalCapacity", &CMMCore::getBufferTotalCapacity)
+      .def("getBufferFreeCapacity", &CMMCore::getBufferFreeCapacity)
+      .def("isBufferOverflowed", &CMMCore::isBufferOverflowed)
+      .def("setCircularBufferMemoryFootprint", &CMMCore::setCircularBufferMemoryFootprint,
+           "sizeMB"_a)
+      .def("getCircularBufferMemoryFootprint", &CMMCore::getCircularBufferMemoryFootprint)
+      .def("initializeCircularBuffer", &CMMCore::initializeCircularBuffer)
+      .def("clearCircularBuffer", &CMMCore::clearCircularBuffer)
+
+      // Exposure Sequence Methods
+      .def("isExposureSequenceable", &CMMCore::isExposureSequenceable, "cameraLabel"_a)
+      .def("startExposureSequence", &CMMCore::startExposureSequence, "cameraLabel"_a)
+      .def("stopExposureSequence", &CMMCore::stopExposureSequence, "cameraLabel"_a)
+      .def("getExposureSequenceMaxLength", &CMMCore::getExposureSequenceMaxLength, "cameraLabel"_a)
+      .def("loadExposureSequence", &CMMCore::loadExposureSequence, "cameraLabel"_a,
+           "exposureSequence_ms"_a)
+
+      // Autofocus Methods
+      .def("getLastFocusScore", &CMMCore::getLastFocusScore)
+      .def("getCurrentFocusScore", &CMMCore::getCurrentFocusScore)
+      .def("enableContinuousFocus", &CMMCore::enableContinuousFocus, "enable"_a)
+      .def("isContinuousFocusEnabled", &CMMCore::isContinuousFocusEnabled)
+      .def("isContinuousFocusLocked", &CMMCore::isContinuousFocusLocked)
+      .def("isContinuousFocusDrive", &CMMCore::isContinuousFocusDrive, "stageLabel"_a)
+      .def("fullFocus", &CMMCore::fullFocus)
+      .def("incrementalFocus", &CMMCore::incrementalFocus)
+      .def("setAutoFocusOffset", &CMMCore::setAutoFocusOffset, "offset"_a)
+      .def("getAutoFocusOffset", &CMMCore::getAutoFocusOffset)
+
+      // State Device Control Methods
+      .def("setState", &CMMCore::setState, "stateDeviceLabel"_a, "state"_a)
+      .def("getState", &CMMCore::getState, "stateDeviceLabel"_a)
+      .def("getNumberOfStates", &CMMCore::getNumberOfStates, "stateDeviceLabel"_a)
+      .def("setStateLabel", &CMMCore::setStateLabel, "stateDeviceLabel"_a, "stateLabel"_a)
+      .def("getStateLabel", &CMMCore::getStateLabel, "stateDeviceLabel"_a)
+      .def("defineStateLabel", &CMMCore::defineStateLabel, "stateDeviceLabel"_a, "state"_a,
+           "stateLabel"_a)
+      .def("getStateLabels", &CMMCore::getStateLabels, "stateDeviceLabel"_a)
+      .def("getStateFromLabel", &CMMCore::getStateFromLabel, "stateDeviceLabel"_a, "stateLabel"_a)
+
+      // Stage Control Methods
+      .def("setPosition", nb::overload_cast<const char*, double>(&CMMCore::setPosition),
+           "stageLabel"_a, "position"_a)
+      .def("setPosition", nb::overload_cast<double>(&CMMCore::setPosition), "position"_a)
+      .def("getPosition", nb::overload_cast<const char*>(&CMMCore::getPosition), "stageLabel"_a)
+      .def("getPosition", nb::overload_cast<>(&CMMCore::getPosition))
+      .def("setRelativePosition",
+           nb::overload_cast<const char*, double>(&CMMCore::setRelativePosition), "stageLabel"_a,
+           "d"_a)
+      .def("setRelativePosition", nb::overload_cast<double>(&CMMCore::setRelativePosition), "d"_a)
+      .def("setOrigin", nb::overload_cast<const char*>(&CMMCore::setOrigin), "stageLabel"_a)
+      .def("setOrigin", nb::overload_cast<>(&CMMCore::setOrigin))
+      .def("setAdapterOrigin", nb::overload_cast<const char*, double>(&CMMCore::setAdapterOrigin),
+           "stageLabel"_a, "newZUm"_a)
+      .def("setAdapterOrigin", nb::overload_cast<double>(&CMMCore::setAdapterOrigin), "newZUm"_a)
+
+      // Focus Direction Methods
+      .def("setFocusDirection", &CMMCore::setFocusDirection, "stageLabel"_a, "sign"_a)
+      .def("getFocusDirection", &CMMCore::getFocusDirection, "stageLabel"_a)
+
+      // Stage Sequence Methods
+      .def("isStageSequenceable", &CMMCore::isStageSequenceable, "stageLabel"_a)
+      .def("isStageLinearSequenceable", &CMMCore::isStageLinearSequenceable, "stageLabel"_a)
+      .def("startStageSequence", &CMMCore::startStageSequence, "stageLabel"_a)
+      .def("stopStageSequence", &CMMCore::stopStageSequence, "stageLabel"_a)
+      .def("getStageSequenceMaxLength", &CMMCore::getStageSequenceMaxLength, "stageLabel"_a)
+      .def("loadStageSequence", &CMMCore::loadStageSequence, "stageLabel"_a, "positionSequence"_a)
+      .def("setStageLinearSequence", &CMMCore::setStageLinearSequence, "stageLabel"_a, "dZ_um"_a,
+           "nSlices"_a)
+
+      // XY Stage Control Methods
+      .def("setXYPosition",
+           nb::overload_cast<const char*, double, double>(&CMMCore::setXYPosition),
+           "xyStageLabel"_a, "x"_a, "y"_a)
+      .def("setXYPosition", nb::overload_cast<double, double>(&CMMCore::setXYPosition), "x"_a,
+           "y"_a)
+      .def("setRelativeXYPosition",
+           nb::overload_cast<const char*, double, double>(&CMMCore::setRelativeXYPosition),
+           "xyStageLabel"_a, "dx"_a, "dy"_a)
+      .def("setRelativeXYPosition",
+           nb::overload_cast<double, double>(&CMMCore::setRelativeXYPosition), "dx"_a, "dy"_a)
+      .def("getXYPosition",
+           nb::overload_cast<const char*, double&, double&>(&CMMCore::getXYPosition),
+           "xyStageLabel"_a, "x_stage"_a, "y_stage"_a)
+      .def("getXYPosition", nb::overload_cast<double&, double&>(&CMMCore::getXYPosition),
+           "x_stage"_a, "y_stage"_a)
+      .def("getXPosition", nb::overload_cast<const char*>(&CMMCore::getXPosition),
+           "xyStageLabel"_a)
+      .def("getYPosition", nb::overload_cast<const char*>(&CMMCore::getYPosition),
+           "xyStageLabel"_a)
+      .def("getXPosition", nb::overload_cast<>(&CMMCore::getXPosition))
+      .def("getYPosition", nb::overload_cast<>(&CMMCore::getYPosition))
+      .def("stop", &CMMCore::stop, "xyOrZStageLabel"_a)
+      .def("home", &CMMCore::home, "xyOrZStageLabel"_a)
+      .def("setOriginXY", nb::overload_cast<const char*>(&CMMCore::setOriginXY), "xyStageLabel"_a)
+      .def("setOriginXY", nb::overload_cast<>(&CMMCore::setOriginXY))
+      .def("setOriginX", nb::overload_cast<const char*>(&CMMCore::setOriginX), "xyStageLabel"_a)
+      .def("setOriginX", nb::overload_cast<>(&CMMCore::setOriginX))
+      .def("setOriginY", nb::overload_cast<const char*>(&CMMCore::setOriginY), "xyStageLabel"_a)
+      .def("setOriginY", nb::overload_cast<>(&CMMCore::setOriginY))
+      .def("setAdapterOriginXY",
+           nb::overload_cast<const char*, double, double>(&CMMCore::setAdapterOriginXY),
+           "xyStageLabel"_a, "newXUm"_a, "newYUm"_a)
+      .def("setAdapterOriginXY", nb::overload_cast<double, double>(&CMMCore::setAdapterOriginXY),
+           "newXUm"_a, "newYUm"_a)
+
+      // XY Stage Sequence Methods
+      .def("isXYStageSequenceable", &CMMCore::isXYStageSequenceable, "xyStageLabel"_a)
+      .def("startXYStageSequence", &CMMCore::startXYStageSequence, "xyStageLabel"_a)
+      .def("stopXYStageSequence", &CMMCore::stopXYStageSequence, "xyStageLabel"_a)
+      .def("getXYStageSequenceMaxLength", &CMMCore::getXYStageSequenceMaxLength, "xyStageLabel"_a)
+      .def("loadXYStageSequence", &CMMCore::loadXYStageSequence, "xyStageLabel"_a, "xSequence"_a,
+           "ySequence"_a)
+
+      // Serial Port Control
+      .def("setSerialProperties", &CMMCore::setSerialProperties, "portName"_a, "answerTimeout"_a,
+           "baudRate"_a, "delayBetweenCharsMs"_a, "handshaking"_a, "parity"_a, "stopBits"_a)
+      .def("setSerialPortCommand", &CMMCore::setSerialPortCommand, "portLabel"_a, "command"_a,
+           "term"_a)
+      .def("getSerialPortAnswer", &CMMCore::getSerialPortAnswer, "portLabel"_a, "term"_a)
+      .def("writeToSerialPort", &CMMCore::writeToSerialPort, "portLabel"_a, "data"_a)
+      .def("readFromSerialPort", &CMMCore::readFromSerialPort, "portLabel"_a)
+
+      // SLM Control
+      .def("setSLMImage", nb::overload_cast<const char*, unsigned char*>(&CMMCore::setSLMImage),
+           "slmLabel"_a, "pixels"_a)
+      .def("setSLMImage", nb::overload_cast<const char*, imgRGB32>(&CMMCore::setSLMImage),
+           "slmLabel"_a, "pixels"_a)
+      .def("setSLMPixelsTo",
+           nb::overload_cast<const char*, unsigned char>(&CMMCore::setSLMPixelsTo), "slmLabel"_a,
+           "intensity"_a)
+      .def("setSLMPixelsTo",
+           nb::overload_cast<const char*, unsigned char, unsigned char, unsigned char>(
+               &CMMCore::setSLMPixelsTo),
+           "slmLabel"_a, "red"_a, "green"_a, "blue"_a)
+      .def("displaySLMImage", &CMMCore::displaySLMImage, "slmLabel"_a)
+      .def("setSLMExposure", &CMMCore::setSLMExposure, "slmLabel"_a, "exposure_ms"_a)
+      .def("getSLMExposure", &CMMCore::getSLMExposure, "slmLabel"_a)
+      .def("getSLMWidth", &CMMCore::getSLMWidth, "slmLabel"_a)
+      .def("getSLMHeight", &CMMCore::getSLMHeight, "slmLabel"_a)
+      .def("getSLMNumberOfComponents", &CMMCore::getSLMNumberOfComponents, "slmLabel"_a)
+      .def("getSLMBytesPerPixel", &CMMCore::getSLMBytesPerPixel, "slmLabel"_a)
+      // SLM Sequence
+      .def("getSLMSequenceMaxLength", &CMMCore::getSLMSequenceMaxLength, "slmLabel"_a)
+      .def("startSLMSequence", &CMMCore::startSLMSequence, "slmLabel"_a)
+      .def("stopSLMSequence", &CMMCore::stopSLMSequence, "slmLabel"_a)
+      //  .def("loadSLMSequence", &CMMCore::loadSLMSequence, "slmLabel"_a, "imageSequence"_a)
+
+      // Galvo Control
+      .def("pointGalvoAndFire", &CMMCore::pointGalvoAndFire, "galvoLabel"_a, "x"_a, "y"_a,
+           "pulseTime_us"_a)
+      .def("setGalvoSpotInterval", &CMMCore::setGalvoSpotInterval, "galvoLabel"_a,
+           "pulseTime_us"_a)
+      .def("setGalvoPosition", &CMMCore::setGalvoPosition, "galvoLabel"_a, "x"_a, "y"_a)
+      .def("getGalvoPosition",
+           [](CMMCore& self, const char* galvoLabel) {
+             double x, y;
+             self.getGalvoPosition(galvoLabel, x, y);  // Call C++ method
+             return std::make_tuple(x, y);             // Return a tuple
+           })
+      .def("setGalvoIlluminationState", &CMMCore::setGalvoIlluminationState, "galvoLabel"_a,
+           "on"_a)
+      .def("getGalvoXRange", &CMMCore::getGalvoXRange, "galvoLabel"_a)
+      .def("getGalvoXMinimum", &CMMCore::getGalvoXMinimum, "galvoLabel"_a)
+      .def("getGalvoYRange", &CMMCore::getGalvoYRange, "galvoLabel"_a)
+      .def("getGalvoYMinimum", &CMMCore::getGalvoYMinimum, "galvoLabel"_a)
+      .def("addGalvoPolygonVertex", &CMMCore::addGalvoPolygonVertex, "galvoLabel"_a,
+           "polygonIndex"_a, "x"_a, "y"_a, R"doc(Add a vertex to a galvo polygon.)doc")
+      .def("deleteGalvoPolygons", &CMMCore::deleteGalvoPolygons, "galvoLabel"_a)
+      .def("loadGalvoPolygons", &CMMCore::loadGalvoPolygons, "galvoLabel"_a)
+      .def("setGalvoPolygonRepetitions", &CMMCore::setGalvoPolygonRepetitions, "galvoLabel"_a,
+           "repetitions"_a)
+      .def("runGalvoPolygons", &CMMCore::runGalvoPolygons, "galvoLabel"_a)
+      .def("runGalvoSequence", &CMMCore::runGalvoSequence, "galvoLabel"_a)
+      .def("getGalvoChannel", &CMMCore::getGalvoChannel, "galvoLabel"_a)
+
+      // Device Discovery
+      .def("supportsDeviceDetection", &CMMCore::supportsDeviceDetection, "deviceLabel"_a)
+      .def("detectDevice", &CMMCore::detectDevice, "deviceLabel"_a)
+
+      // Hub and Peripheral Devices
+      .def("getParentLabel", &CMMCore::getParentLabel, "peripheralLabel"_a)
+      .def("setParentLabel", &CMMCore::setParentLabel, "deviceLabel"_a, "parentHubLabel"_a)
+      .def("getInstalledDevices", &CMMCore::getInstalledDevices, "hubLabel"_a)
+      .def("getInstalledDeviceDescription", &CMMCore::getInstalledDeviceDescription, "hubLabel"_a,
+           "peripheralLabel"_a)
+      .def("getLoadedPeripheralDevices", &CMMCore::getLoadedPeripheralDevices, "hubLabel"_a)
+
+      ;
 }

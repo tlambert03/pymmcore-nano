@@ -1,11 +1,10 @@
 import enum
+from pathlib import Path
 import pymmcore_nano as pmn
 
-mm = []
-
-
-def test_add():
-    assert pmn.add(1, 2) == 3
+root = Path.home() / "Library/Application Support/pymmcore-plus/mm"
+mm = next(root.glob("Micro-Manager-*"), None)
+paths = [str(mm)] if mm else []
 
 
 def test_enums():
@@ -17,8 +16,10 @@ def test_enums():
     mmc = pmn.CMMCore()
     assert mmc.getVersionInfo().startswith("MMCore version")
     assert mmc.getLoadedDevices() == ["Core"]
-    mmc.setDeviceAdapterSearchPaths(mm)
+    mmc.setDeviceAdapterSearchPaths(paths)
 
-    # mmc.loadSystemConfiguration(mm[0] + "/MMConfig_demo.cfg")
-    # assert "Camera" in mmc.getLoadedDevices()
-    # print(mmc.getConfigState("Channel", "DAPI"))
+    if mm:
+        mmc.loadSystemConfiguration(mm / "MMConfig_demo.cfg")
+        assert "Camera" in mmc.getLoadedDevices()
+        cfg = mmc.getConfigState("Channel", "DAPI")
+        assert isinstance(cfg, pmn.Configuration)

@@ -1,5 +1,5 @@
 [build-system]
-requires = ['meson-python', 'mypy']  # mypy is for stubgen
+requires = ['meson-python', 'nanobind', 'ruff'] # nanobind is for stubgen
 build-backend = 'mesonpy'
 
 [project]
@@ -8,12 +8,13 @@ requires-python = ">=3.10"
 dynamic = ['version']
 description = "CMMCore wrapper for Python, using nanobind"
 readme = "README.md"
-dependencies = []
+dependencies = ["numpy"]
 
 [dependency-groups]
 dev = [
     "ipython>=8.29.0",
     "meson-python>=0.17.1",
+    "nanobind",
     "mypy>=1.13.0",
     "ninja>=1.11.1.2",
     "pdbpp>=0.10.3",
