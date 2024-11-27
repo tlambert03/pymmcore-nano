@@ -35,6 +35,7 @@ jobs:
 
       - name: install and test
         run: |
+          # this works, but is probably wrong
           uv sync --all-extras
           . .venv/bin/activate
           uv pip install .
