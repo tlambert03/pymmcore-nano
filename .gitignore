@@ -9,4 +9,3 @@ subprojects/*
 
 .vscode
 __pycache__
-src/_pymmcore_nano.pyi

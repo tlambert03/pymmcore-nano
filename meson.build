@@ -76,6 +76,7 @@ install_subdir(
     install_dir: py.get_install_dir() / 'pymmcore_nano',
     strip_directory: true,
 )
+
 # also install the stubs into the site-packages directory
 install_data(
     'src/_pymmcore_nano.pyi',
