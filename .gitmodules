@@ -1,4 +1,4 @@
-[submodule "extern/mmCoreAndDevices"]
-	path = extern/mmCoreAndDevices
+[submodule "src/mmCoreAndDevices"]
+	path = src/mmCoreAndDevices
 	url = https://github.com/micro-manager/mmCoreAndDevices
-	ignore = all
+	ignore = dirty

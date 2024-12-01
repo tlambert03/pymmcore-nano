@@ -1,5 +1,10 @@
 [build-system]
-requires = ['meson-python', 'nanobind', 'ruff', 'typing_extensions'] # nanobind is for stubgen
+requires = [
+    'meson-python',
+    'nanobind',          # for stubgen
+    'typing_extensions', # for stubgen (should be declared by nanobind)
+    'ruff',              # for stubgen
+]
 build-backend = 'mesonpy'
 
 [project]
@@ -19,8 +24,11 @@ dev = [
     "ninja>=1.11.1.2",
     "pdbpp>=0.10.3; sys_platform != 'win32'",
     "pre-commit>=4.0.1",
-    "pytest",
+    "pytest>=8.0",
     "ruff>=0.8.0",
+    "pytest-cov>=6.0.0",
+    "gcovr>=8.2",
+    "rich>=13.9.4",
 ]
 
 # https://docs.pytest.org/
@@ -28,3 +36,20 @@ dev = [
 minversion = "7.0"
 testpaths = ["tests"]
 filterwarnings = ["error"]
+
+# https://coverage.readthedocs.io/
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "except ImportError",
+    "\\.\\.\\.",
+    "raise NotImplementedError()",
+    "pass",
+]
+
+[tool.coverage.run]
+omit = ['subprojects/']
+source = ["pymmcore_nano", "mmCoreAndDevices"]
