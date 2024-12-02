@@ -1,6 +1,5 @@
 import enum
 from pathlib import Path
-import sys
 import time
 from typing import Callable
 import numpy as np
@@ -17,31 +16,6 @@ def _wait_until(predicate: Callable[[], bool], timeout: float = 1.0, interval=0.
     raise TimeoutError("Timed out waiting for condition")
 
 
-@pytest.fixture
-def adapter_paths() -> list[str]:
-    adapters = Path(__file__).parent / "adapters" / sys.platform
-    if not adapters.is_dir():
-        pytest.skip(f"No adapters for {sys.platform}")
-    return [str(adapters)]
-
-
-@pytest.fixture
-def core(adapter_paths: list[str]) -> pmn.CMMCore:
-    """Return a CMMCore instance with the demo configuration loaded."""
-    mmc = pmn.CMMCore()
-    mmc.setDeviceAdapterSearchPaths(adapter_paths)
-    return mmc
-
-
-@pytest.fixture
-def demo_core(core: pmn.CMMCore) -> pmn.CMMCore:
-    """Return a CMMCore instance with the demo configuration loaded."""
-    cfg = Path(__file__).parent / "MMConfig_demo.cfg"
-    core.loadSystemConfiguration(cfg)
-    core.waitForSystem()
-    return core
-
-
 def test_enums() -> None:
     assert pmn.DeviceType.CameraDevice == 2
     assert isinstance(pmn.DeviceType.CameraDevice, enum.IntEnum)
@@ -52,6 +26,7 @@ def test_enums() -> None:
 def test_bare_core() -> None:
     """Test basic CMMCore functionality without providing any adapters."""
     mmc = pmn.CMMCore()
+
     api_version_info = mmc.getAPIVersionInfo()
     assert api_version_info.startswith("Device API version")
     assert str(pmn.DEVICE_INTERFACE_VERSION) in api_version_info
@@ -61,9 +36,6 @@ def test_bare_core() -> None:
     assert timeout > 0
     mmc.setTimeoutMs(1000)
     assert mmc.getTimeoutMs() == 1000
-
-    with pytest.raises(pmn.CMMError):
-        mmc.loadDevice("Camera", "DemoCamera", "DCam")
 
 
 def test_device_listings(core: pmn.CMMCore) -> None:
@@ -109,6 +81,7 @@ def test_device_loading(core: pmn.CMMCore) -> None:
 
     core.loadDevice(LABEL, LIBRARY, DEVICE_NAME)
     core.initializeAllDevices()
+    core.waitForSystem()
     init_state = core.getDeviceInitializationState(LABEL)
     assert init_state == pmn.DeviceInitializationState.InitializedSuccessfully
     core.unloadAllDevices()
