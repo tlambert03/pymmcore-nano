@@ -381,6 +381,7 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("addSetting", &Configuration::addSetting, "setting"_a)
       .def("deleteSetting", &Configuration::deleteSetting, "device"_a, "property"_a)
       .def("isPropertyIncluded", &Configuration::isPropertyIncluded, "device"_a, "property"_a)
+      .def("isSettingIncluded", &Configuration::isSettingIncluded, "ps"_a)
       .def("isConfigurationIncluded", &Configuration::isConfigurationIncluded, "cfg"_a)
       .def("getSetting", nb::overload_cast<size_t>(&Configuration::getSetting, nb::const_),
            "index"_a)
@@ -550,6 +551,55 @@ NB_MODULE(_pymmcore_nano, m) {
   // and a basic message will be propagated, for example:
   // CMMError('Failed to load device "SomeDevice" from adapter module "SomeModule"')
   nb::exception<CMMError>(m, "CMMError", PyExc_RuntimeError);
+  nb::register_exception_translator([](const std::exception_ptr& p, void* /* unused */) {
+    try {
+      std::rethrow_exception(p);
+    } catch (const CMMError& e) {
+      // Map the CMMError to a Python exception
+      switch (e.getCode()) {
+        case MMERR_BadAffineTransform:
+        case MMERR_BadConfigName:
+        case MMERR_DuplicateConfigGroup:
+        case MMERR_DuplicateLabel:
+        case MMERR_InvalidContents:
+        case MMERR_InvalidCoreProperty:
+        case MMERR_InvalidCoreValue:
+        case MMERR_InvalidLabel:
+        case MMERR_InvalidPropertyBlock:
+        case MMERR_InvalidSerialDevice:
+        case MMERR_InvalidShutterDevice:
+        case MMERR_InvalidSpecificDevice:
+        case MMERR_InvalidStageDevice:
+        case MMERR_InvalidStateDevice:
+        case MMERR_InvalidXYStageDevice:
+        case MMERR_NoConfigGroup:
+        case MMERR_NoConfiguration:
+        case MMERR_NullPointerException:
+        case MMERR_PropertyNotInCache:
+        case MMERR_SetPropertyFailed:
+        case MMERR_UnexpectedDevice: PyErr_SetString(PyExc_ValueError, e.what()); break;
+
+        case MMERR_FileOpenFailed:
+        case MMERR_InvalidCFGEntry:
+        case MMERR_InvalidConfigurationFile:
+        case MMERR_LoadLibraryFailed: PyErr_SetString(PyExc_IOError, e.what()); break;
+
+        case MMERR_CircularBufferEmpty:
+        case MMERR_InvalidConfigurationIndex: PyErr_SetString(PyExc_IndexError, e.what()); break;
+
+        case MMERR_CircularBufferFailedToInitialize:
+        case MMERR_OutOfMemory: PyErr_SetString(PyExc_MemoryError, e.what()); break;
+
+        case MMERR_CameraBufferReadFailed:
+        case MMERR_CircularBufferIncompatibleImage:
+        case MMERR_UnhandledException:
+        case MMERR_UnknownModule:
+        case MMERR_OK:  // Shouldn't get here with MMERR_OK
+        default: PyErr_SetString(PyExc_RuntimeError, e.getMsg().c_str()); break;
+      }
+    }
+  });
+
   nb::exception<MetadataKeyError>(m, "MetadataKeyError", PyExc_KeyError);
   nb::exception<MetadataIndexError>(m, "MetadataIndexError", PyExc_IndexError);
 
@@ -772,7 +822,13 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("isMultiROISupported", &CMMCore::isMultiROISupported)
       .def("isMultiROIEnabled", &CMMCore::isMultiROIEnabled)
       .def("setMultiROI", &CMMCore::setMultiROI, "xs"_a, "ys"_a, "widths"_a, "heights"_a)
-      .def("getMultiROI", &CMMCore::getMultiROI, "xs"_a, "ys"_a, "widths"_a, "heights"_a)
+      .def("getMultiROI", [](CMMCore& self) -> std::tuple<std::vector<unsigned>, std::vector<unsigned>,
+                                                           std::vector<unsigned>, std::vector<unsigned>> {
+          std::vector<unsigned> xs, ys, widths, heights;
+          self.getMultiROI(xs, ys, widths, heights);
+          return std::make_tuple(xs, ys, widths, heights);
+      })
+
       .def("setExposure", nb::overload_cast<double>(&CMMCore::setExposure), "exp"_a)
       .def("setExposure", nb::overload_cast<const char*, double>(&CMMCore::setExposure),
            "cameraLabel"_a, "dExp"_a)
@@ -1004,11 +1060,20 @@ NB_MODULE(_pymmcore_nano, m) {
            "xyStageLabel"_a, "dx"_a, "dy"_a)
       .def("setRelativeXYPosition",
            nb::overload_cast<double, double>(&CMMCore::setRelativeXYPosition), "dx"_a, "dy"_a)
-      .def("getXYPosition",
-           nb::overload_cast<const char*, double&, double&>(&CMMCore::getXYPosition),
-           "xyStageLabel"_a, "x_stage"_a, "y_stage"_a)
-      .def("getXYPosition", nb::overload_cast<double&, double&>(&CMMCore::getXYPosition),
-           "x_stage"_a, "y_stage"_a)
+
+     .def("getXYPosition",
+          [](CMMCore& self) -> std::tuple<double, double> {
+            double x, y;
+            self.getXYPosition(x, y);
+            return {x, y};
+          }, "Get the current XY position of the current XY stage")
+     .def("getXYPosition",
+          [](CMMCore& self, const char* xyStageLabel) -> std::tuple<double, double> {
+            double x, y;
+            self.getXYPosition(xyStageLabel, x, y);
+            return {x, y};
+          }, "xyStageLabel"_a, "Get the current XY position of the specified XY stage")
+
       .def("getXPosition", nb::overload_cast<const char*>(&CMMCore::getXPosition),
            "xyStageLabel"_a)
       .def("getYPosition", nb::overload_cast<const char*>(&CMMCore::getYPosition),
