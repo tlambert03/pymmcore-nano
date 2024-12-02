@@ -1,7 +1,7 @@
-from typing import Any
 from collections.abc import Sequence
 import enum
-from typing import overload
+from typing import Annotated, overload
+from numpy.typing import ArrayLike
 
 class ActionType(enum.IntEnum):
     NoAction = 0
@@ -226,9 +226,9 @@ class CMMCore:
     def getExposure(self, label: str) -> float: ...
     def snapImage(self) -> None: ...
     @overload
-    def getImage(self) -> Any: ...
+    def getImage(self) -> Annotated[ArrayLike, dict(writable=False)]: ...
     @overload
-    def getImage(self, numChannel: int) -> Any: ...
+    def getImage(self, arg: int, /) -> Annotated[ArrayLike, dict(writable=False)]: ...
     def getImageWidth(self) -> int: ...
     def getImageHeight(self) -> int: ...
     def getBytesPerPixel(self) -> int: ...
@@ -265,10 +265,78 @@ class CMMCore:
     def isSequenceRunning(self) -> bool: ...
     @overload
     def isSequenceRunning(self, cameraLabel: str) -> bool: ...
-    def getLastImage(self) -> Any: ...
-    def popNextImage(self) -> Any: ...
-    def getLastImageMD(self, md: Metadata) -> Any: ...
-    def getNBeforeLastImageMD(self, n: int, md: Metadata) -> Any: ...
+    def getLastImage(self) -> Annotated[ArrayLike, dict(writable=False)]: ...
+    def popNextImage(self) -> Annotated[ArrayLike, dict(writable=False)]: ...
+    @overload
+    def getLastImageMD(
+        self,
+    ) -> tuple[Annotated[ArrayLike, dict(writable=False)], Metadata]:
+        """
+        Get the last image in the circular buffer, return as tuple of image and metadata
+        """
+    @overload
+    def getLastImageMD(
+        self, md: Metadata
+    ) -> Annotated[ArrayLike, dict(writable=False)]:
+        """
+        Get the last image in the circular buffer, store metadata in the provided object
+        """
+    @overload
+    def getLastImageMD(
+        self, channel: int, slice: int
+    ) -> tuple[Annotated[ArrayLike, dict(writable=False)], Metadata]:
+        """
+        Get the last image in the circular buffer for a specific channel and slice, returnas tuple of image and metadata
+        """
+    @overload
+    def getLastImageMD(
+        self, channel: int, slice: int, md: Metadata
+    ) -> Annotated[ArrayLike, dict(writable=False)]:
+        """
+        Get the last image in the circular buffer for a specific channel and slice, store metadata in the provided object
+        """
+    @overload
+    def popNextImageMD(
+        self,
+    ) -> tuple[Annotated[ArrayLike, dict(writable=False)], Metadata]:
+        """
+        Get the last image in the circular buffer, return as tuple of image and metadata
+        """
+    @overload
+    def popNextImageMD(
+        self, md: Metadata
+    ) -> Annotated[ArrayLike, dict(writable=False)]:
+        """
+        Get the last image in the circular buffer, store metadata in the provided object
+        """
+    @overload
+    def popNextImageMD(
+        self, channel: int, slice: int
+    ) -> tuple[Annotated[ArrayLike, dict(writable=False)], Metadata]:
+        """
+        Get the last image in the circular buffer for a specific channel and slice, returnas tuple of image and metadata
+        """
+    @overload
+    def popNextImageMD(
+        self, channel: int, slice: int, md: Metadata
+    ) -> Annotated[ArrayLike, dict(writable=False)]:
+        """
+        Get the last image in the circular buffer for a specific channel and slice, store metadata in the provided object
+        """
+    @overload
+    def getNBeforeLastImageMD(
+        self, n: int
+    ) -> tuple[Annotated[ArrayLike, dict(writable=False)], Metadata]:
+        """
+        Get the nth image before the last image in the circular buffer and return it as a tuple of image and metadata
+        """
+    @overload
+    def getNBeforeLastImageMD(
+        self, n: int, md: Metadata
+    ) -> Annotated[ArrayLike, dict(writable=False)]:
+        """
+        Get the nth image before the last image in the circular buffer and store the metadata in the provided object
+        """
     def getRemainingImageCount(self) -> int: ...
     def getBufferTotalCapacity(self) -> int: ...
     def getBufferFreeCapacity(self) -> int: ...
@@ -634,6 +702,12 @@ class MetadataArrayTag(MetadataTag):
         """Serializes this tag to a string"""
     def Restore(self, stream: str) -> bool:
         """Restores from a serialized string"""
+
+class MetadataIndexError(IndexError):
+    pass
+
+class MetadataKeyError(KeyError):
+    pass
 
 class MetadataSingleTag(MetadataTag):
     @overload

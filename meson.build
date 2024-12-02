@@ -36,7 +36,7 @@ endforeach
 
 # ---------- patch c++14 to c++17 ----------
 
-run_command(py.full_path(), 'scripts/patch_c14_c17.py', check: true)
+run_command(py.full_path(), 'scripts/patch_sources.py', check: true)
 
 # --------------------------
 
