@@ -62,3 +62,8 @@ check:
 
 version:
 	meson rewrite kwargs set project / version $(shell python scripts/extract_version.py)
+
+release:
+	make version
+	git tag -a v$(shell python scripts/extract_version.py) -m "Release v$(shell python scripts/extract_version.py)"
+	git push upstream --follow-tags
