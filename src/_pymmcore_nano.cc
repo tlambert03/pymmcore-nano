@@ -14,7 +14,7 @@ namespace nb = nanobind;
 
 using namespace nb::literals;
 
-const int PYMMCORE_NANO_VERSION = 0;
+const std::string PYMMCORE_NANO_VERSION = "0.dev0";
 
 ///////////////// NUMPY ARRAY HELPERS ///////////////////
 
@@ -238,8 +238,8 @@ NB_MODULE(_pymmcore_nano, m) {
       std::tuple(MMCore_versionMajor, MMCore_versionMinor, MMCore_versionPatch);
   // the final combined version
   m.attr("PYMMCORE_NANO_VERSION") = PYMMCORE_NANO_VERSION;
-  m.attr("__version__") = version + "." + std::to_string(DEVICE_INTERFACE_VERSION) + "." +
-                          std::to_string(PYMMCORE_NANO_VERSION);
+  m.attr("__version__") =
+      version + "." + std::to_string(DEVICE_INTERFACE_VERSION) + "." + PYMMCORE_NANO_VERSION;
 
   m.attr("MM_CODE_OK") = MM_CODE_OK;
   m.attr("MM_CODE_ERR") = MM_CODE_ERR;

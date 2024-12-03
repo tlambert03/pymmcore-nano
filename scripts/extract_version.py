@@ -18,7 +18,7 @@ def extract_version():
     device = re.search(r"#define DEVICE_INTERFACE_VERSION (\d+)", content)
 
     content = (SRC / "_pymmcore_nano.cc").read_text(encoding="utf-8")
-    pmn = re.search(r"PYMMCORE_NANO_VERSION = (\d+)", content)
+    pmn = re.search(r"PYMMCORE_NANO_VERSION = \"(.+)\"", content)
 
     if major and minor and patch and device and pmn:
         return f"{major.group(1)}.{minor.group(1)}.{patch.group(1)}.{device.group(1)}.{pmn.group(1)}"
