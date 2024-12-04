@@ -4,7 +4,6 @@ builddir := `ls -d build/cp3* 2>/dev/null | head -n 1`
 
 # install deps and editable package for development
 install:
-	git submodule update --init
 	uv sync --no-install-project
 	uv pip install -e . \
 		--no-build-isolation \
@@ -25,6 +24,9 @@ clean:
 	rm -rf .ruff_cache .mypy_cache .pytest_cache
 	rm -rf .mesonpy-*
 	rm -rf *.gcov
+
+	# clean all the nested builddirs
+	find src -name builddir -type d -exec rm -rf {} +
 
 # run tests
 test:
@@ -48,3 +50,31 @@ version:
 # run pre-commit checks
 check:
 	pre-commit run --all-files --hook-stage manual
+
+pull-mmcore:
+	git subtree pull --prefix=src/mmCoreAndDevices https://github.com/micro-manager/mmCoreAndDevices main --squash
+
+build-devices:
+	just build-adapter DemoCamera
+	just build-adapter Utilities
+	# just build-adapter SequenceTester
+
+build-mmdevice:
+	meson setup src/mmCoreAndDevices/MMDevice/builddir src/mmCoreAndDevices/MMDevice
+	meson compile -C src/mmCoreAndDevices/MMDevice/builddir
+
+build-adapter dir:
+	just build-mmdevice
+	mkdir -p src/mmCoreAndDevices/DeviceAdapters/{{dir}}/subprojects
+	rm -f src/mmCoreAndDevices/DeviceAdapters/{{dir}}/subprojects/MMDevice
+	ln -s ../../../MMDevice src/mmCoreAndDevices/DeviceAdapters/{{dir}}/subprojects/MMDevice
+
+	meson setup src/mmCoreAndDevices/DeviceAdapters/{{dir}}/builddir src/mmCoreAndDevices/DeviceAdapters/{{dir}}
+	meson compile -C src/mmCoreAndDevices/DeviceAdapters/{{dir}}/builddir
+
+	# # copy to tests dir...
+	# # this is made annoying because the extension is platform dependent and needs to be just right for
+	# # micromanager to pick it up
+	# file=$(find src/mmCoreAndDevices/DeviceAdapters/{{dir}}/builddir -type f -name 'libmmgr_dal_*' ! -name '*.p*') && \
+	# filename=$(basename "$file" | sed 's/\.[^.]*$//') && \
+	# cp "$file" "tests/adapters/$filename"
