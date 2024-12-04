@@ -45,8 +45,9 @@ def build_stub(module_path: Path, output_path: str):
     stub_txt = re.sub("\n\n", "\n", stub_txt)
 
     dest.write_text(stub_txt)
-    subprocess.run(["ruff", "format", output_path], check=True)
-    subprocess.run(["ruff", "check", "--fix-only", output_path])
+    ruff = Path(sys.executable).parent / "ruff"
+    subprocess.run([str(ruff), "format", output_path], check=True)
+    subprocess.run([str(ruff), "check", "--fix-only", output_path])
 
 
 if __name__ == "__main__":

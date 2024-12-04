@@ -20,6 +20,7 @@ dev = [
     "ipython",
     "meson-python",
     "nanobind",
+    "rust-just",
     "mypy",
     "ninja",
     "pdbpp; sys_platform != 'win32'",
