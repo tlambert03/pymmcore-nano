@@ -48,4 +48,3 @@ version:
 # run pre-commit checks
 check:
 	pre-commit run --all-files --hook-stage manual
-
