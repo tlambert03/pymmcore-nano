@@ -31,6 +31,10 @@
 #include "G2SBigTiffDataset.h"
 #ifdef _WIN32
 #include <Windows.h>
+#elif __APPLE__
+#include <fcntl.h>
+#include <unistd.h>
+// macOS-specific headers or alternatives go here
 #else
 #include <fcntl.h>
 #include <unistd.h>

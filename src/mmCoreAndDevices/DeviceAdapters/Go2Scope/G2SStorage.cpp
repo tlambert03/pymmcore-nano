@@ -27,7 +27,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include "G2SStorage.h"
 #include "ModuleInterface.h"
-#include "G2SBigTiffStorage.h"
+// #include "G2SBigTiffStorage.h"
 #include "AcqZarrStorage.h"
 
 
@@ -37,7 +37,7 @@
 MODULE_API void InitializeModuleData()
 {
    RegisterDevice(g_AcqZarrStorage, MM::StorageDevice, "Zarr storage based on Acquire");
-	RegisterDevice(g_BigTiffStorage, MM::StorageDevice, "BigTIFF storage based on Go2Scope");
+	// RegisterDevice(g_BigTiffStorage, MM::StorageDevice, "BigTIFF storage based on Go2Scope");
 }
 
 MODULE_API MM::Device* CreateDevice(const char* deviceName)
@@ -47,8 +47,8 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
 
    if(strcmp(deviceName, g_AcqZarrStorage) == 0)
 		return new AcqZarrStorage();
-	if(strcmp(deviceName, g_BigTiffStorage) == 0)
-		return new G2SBigTiffStorage();
+	// if(strcmp(deviceName, g_BigTiffStorage) == 0)
+	// 	return new G2SBigTiffStorage();
 
    return 0;
 }

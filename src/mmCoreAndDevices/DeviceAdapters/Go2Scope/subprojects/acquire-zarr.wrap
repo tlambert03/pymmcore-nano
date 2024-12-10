@@ -1,5 +1,8 @@
-[wrap-file]
-directory = acquire-zarr
-source_url = https://github.com/acquire-project/acquire-zarr/releases/download/nightly/acquire-zarr-nightly-Darwin.zip
-source_filename = acquire-zarr-nightly-Darwin.zip
-source_hash = a3abede227268285206b576e1bbbfe5e99e6acaca7d5ca4148884a71abb54ac5
+[wrap-git]
+url = https://github.com/acquire-project/acquire-zarr
+revision = v0.0.2
+depth = 1
+method = cmake
+
+[provide]
+acquire-zarr = acquire_zarr_dep

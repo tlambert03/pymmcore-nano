@@ -256,6 +256,7 @@ int AcqZarrStorage::Create(const char* path, const char* name, int numberOfDimen
 
    // Clean up
    ZarrStreamSettings_destroy_dimension_array(&settings);
+   LogMessage("Created Zarr stream: " + dsName + " with handle: " + streamHandle + " and number of dimensions: " + to_string(numberOfDimensions));
 
    streamPath = dsName;
 
