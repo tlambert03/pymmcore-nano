@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include "G2SStorage.h"
 #include "AcqZarrStorage.h"
-#include "zarr.h"
+#include "acquire.zarr.h"
 #include "nlohmann/json.hpp"
 #include <random>
 #include <sstream>
@@ -170,14 +170,7 @@ int AcqZarrStorage::Create(const char* path, const char* name, int numberOfDimen
       return ERR_ZARR_NUMDIMS;
    }
 
-   auto settings = ZarrStreamSettings_create();
-   if (!settings)
-   {
-      LogMessage("Failed creating Zarr stream settings.");
-      return ERR_ZARR_SETTINGS;
-   }
-
-   // set path
+   // Generate a unique path
    string savePrefix(name);
    string savePrefixTmp(name);
    string saveRoot(path);
@@ -192,130 +185,77 @@ int AcqZarrStorage::Create(const char* path, const char* name, int numberOfDimen
    if (!boost::filesystem::create_directory(dsName, errCode))
       return ERR_FAILED_CREATING_FILE;
 
-   char* streamPathName = new char[dsName.size() + 1];
-   strcpy(streamPathName, dsName.c_str());
-   ZarrStatus status = ZarrStreamSettings_set_store(settings,
-                                                    streamPathName,
-                                                    dsName.size() + 1,
-                                                    nullptr);
-   if (status != ZarrStatus_Success)
-   {
-      LogMessage(getErrorMessage(status));
-      ZarrStreamSettings_destroy(settings);
-      return ERR_ZARR_SETTINGS;
-   }
+   ZarrStreamSettings settings = {};
+   settings.store_path = dsName.c_str();
+   settings.dimension_count = numberOfDimensions;
+   // settings.multiscale = false;
 
    // set data type and convert to zarr
    int ztype = ConvertToZarrType(pixType);
    if (ztype == -1)
    {
       LogMessage("Pixel data type is not supported by Zarr writer " + pixType);
-      ZarrStreamSettings_destroy(settings);
+      return ERR_ZARR_SETTINGS;
+   }
+   settings.data_type = static_cast<ZarrDataType>(ztype);
+   settings.version = ZarrVersion_2;
+
+   // Allocate and set dimensions
+   if (ZarrStreamSettings_create_dimension_array(&settings, numberOfDimensions) != ZarrStatusCode_Success)
+   {
+      LogMessage("Failed to allocate dimension array.");
       return ERR_ZARR_SETTINGS;
    }
 
-   status = ZarrStreamSettings_set_data_type(settings, (ZarrDataType)ztype);
-   if (status != ZarrStatus_Success)
+   for (int i = 0; i < numberOfDimensions; ++i)
    {
-      LogMessage(getErrorMessage(status));
-      ZarrStreamSettings_destroy(settings);
-      return ERR_ZARR_SETTINGS;
-   }
-
-   status = ZarrStreamSettings_reserve_dimensions(settings, numberOfDimensions);
-   if (status != ZarrStatus_Success)
-   {
-      LogMessage(getErrorMessage(status));
-      ZarrStreamSettings_destroy(settings);
-      return ERR_ZARR_SETTINGS;
-   }
-
-   for (size_t i = 0; i < numberOfDimensions - 2; i++)
-   {
-      ZarrDimensionProperties dimProps;
+      ZarrDimensionProperties& dim = settings.dimensions[i];
       ostringstream osd;
-      osd << "dim-" << i;
-      auto dimName(osd.str());
-      dimProps.name = new char[dimName.size() + 1];
-      strcpy(const_cast<char*>(dimProps.name), osd.str().c_str());
-      dimProps.bytes_of_name = dimName.size() + 1;
-      dimProps.array_size_px = shape[i];
-      dimProps.chunk_size_px = 1;
-      dimProps.shard_size_chunks = 1;
-      ZarrStatus status = ZarrStreamSettings_set_dimension(settings, i, &dimProps);
-      if (status != ZarrStatus_Success)
-      {
-         LogMessage(getErrorMessage(status));
-         ZarrStreamSettings_destroy(settings);
-         return ERR_ZARR_SETTINGS;
-      }
+      if (i == numberOfDimensions - 2)
+         osd << "y";
+      else if (i == numberOfDimensions - 1)
+         osd << "x";
+      else
+         osd << "dim-" << i;
+
+      string dimName = osd.str();
+      dim.name = dimName.c_str();
+      dim.array_size_px = shape[i];
+      dim.chunk_size_px = (i >= numberOfDimensions - 2) ? shape[i] : 1;
+      dim.shard_size_chunks = 1;
+      dim.type = (i >= numberOfDimensions - 2) ? ZarrDimensionType_Space : ZarrDimensionType_Other;
    }
 
-   ZarrDimensionProperties dimPropsY;
-   string nameY("y");
-   dimPropsY.name = new char[nameY.size() + 1];
-   strcpy(const_cast<char*>(dimPropsY.name), nameY.c_str());
-   dimPropsY.bytes_of_name = nameY.size() + 1;
-   dimPropsY.array_size_px = shape[numberOfDimensions - 2];
-   dimPropsY.chunk_size_px = dimPropsY.array_size_px;
-   dimPropsY.shard_size_chunks = 1;
-   dimPropsY.kind = ZarrDimensionType_Space;
-
-   status = ZarrStreamSettings_set_dimension(settings, numberOfDimensions - 2, &dimPropsY);
-   if (status != ZarrStatus_Success)
+   // Set custom metadata
+   if (meta && strlen(meta) > 0)
    {
-      LogMessage(getErrorMessage(status));
-      ZarrStreamSettings_destroy(settings);
-      return ERR_ZARR_SETTINGS;
+      settings.custom_metadata = meta;
    }
 
-   ZarrDimensionProperties dimPropsX;
-   string nameX("x");
-   dimPropsX.name = new char[nameX.size() + 1];
-   strcpy(const_cast<char*>(dimPropsX.name), nameX.c_str());
-   dimPropsX.bytes_of_name = nameX.size() + 1;
-   dimPropsX.array_size_px = shape[numberOfDimensions - 1];
-   dimPropsX.chunk_size_px = dimPropsX.array_size_px;
-   dimPropsX.shard_size_chunks = 1;
-   dimPropsX.kind = ZarrDimensionType_Space;
-
-   status = ZarrStreamSettings_set_dimension(settings, numberOfDimensions - 1, &dimPropsX);
-   if (status != ZarrStatus_Success)
-   {
-      LogMessage(getErrorMessage(status));
-      ZarrStreamSettings_destroy(settings);
-      return ERR_ZARR_SETTINGS;
-   }
-
-   if (strlen(meta))
-   {
-      status = ZarrStreamSettings_set_custom_metadata(settings, meta, strlen(meta) + 1);
-      if (status != ZarrStatus_Success)
-      {
-         LogMessage("Invalid summary metadata.");
-         ZarrStreamSettings_destroy(settings);
-         return ERR_ZARR_SETTINGS;
-      }
-   }
-
-   zarrStream = ZarrStream_create(settings, ZarrVersion_2);
+   // Create the Zarr stream
+   zarrStream = ZarrStream_create(&settings);
    if (zarrStream == nullptr)
    {
       LogMessage("Failed creating Zarr stream: " + dsName);
-      ZarrStreamSettings_destroy(settings);
+      ZarrStreamSettings_destroy_dimension_array(&settings);
       return ERR_ZARR_STREAM_CREATE;
    }
 
+   // Finalize
    dataType = pixType;
    streamHandle = generate_guid();
    streamDimensions.clear();
-   for (int i = 0; i < numberOfDimensions; i++) streamDimensions.push_back(shape[i]);
+   for (int i = 0; i < numberOfDimensions; i++)
+   {
+      streamDimensions.push_back(shape[i]);
+   }
    // TODO: allow many streams
 
    currentImageNumber = 0;
    strncpy(handle, streamHandle.c_str(), MM::MaxStrLength);
 
-   ZarrStreamSettings_destroy(settings);
+   // Clean up
+   ZarrStreamSettings_destroy_dimension_array(&settings);
 
    streamPath = dsName;
 
@@ -406,8 +346,8 @@ int AcqZarrStorage::AddImage(const char* handle, int sizeInBytes, unsigned char*
 
    size_t bytesIn(sizeInBytes);
    size_t bytesOut(0);
-   ZarrStatus status = ZarrStream_append(zarrStream, pixels, bytesIn, &bytesOut);
-   if (status != ZarrStatus_Success)
+   ZarrStatusCode status = ZarrStream_append(zarrStream, pixels, bytesIn, &bytesOut);
+   if (status != ZarrStatusCode_Success)
    {
       LogMessage(getErrorMessage(status));
       return ERR_ZARR_STREAM_APPEND;
@@ -515,7 +455,7 @@ int AcqZarrStorage::GetPath(const char* handle, char* path, int maxPathLength)
 
 std::string AcqZarrStorage::getErrorMessage(int code)
 {
-   return std::string(Zarr_get_error_message((ZarrStatus)code));
+   return std::string(Zarr_get_status_message((ZarrStatusCode)code));
 }
 
 void AcqZarrStorage::destroyStream()
