@@ -14,7 +14,6 @@ project(
 boost_dep = dependency('boost', modules : ['filesystem', 'system'])
 aquire_zarr_dep = dependency('acquire-zarr')
 curl_dep = dependency('libcurl', required: true)
-libacquire_logger_path = meson.current_source_dir() + '/libacquire_logger.a'
 
 # MMDevice must be copied into subprojects/ for this experimental build to work
 # (unless MMCore is itself being used as a subproject).
@@ -35,7 +34,6 @@ library(
     'mmgr_dal_Go2Scope',
     sources: g2s_sources,
     dependencies: [mmdevice_dep, boost_dep, aquire_zarr_dep, curl_dep],
-    link_args: [libacquire_logger_path],  # Add the copied logger library
     cpp_args: [
         '-Wno-unused-parameter',
     ],
