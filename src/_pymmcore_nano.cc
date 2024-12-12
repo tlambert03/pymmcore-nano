@@ -83,12 +83,19 @@ np_array build_grayscale_np_array(CMMCore &core, void *pBuf, unsigned width, uns
 // so we create two constructors
 np_array build_rgb_np_array(CMMCore &core, void *pBuf, unsigned width, unsigned height,
                             unsigned byteDepth) {
+  const unsigned out_byteDepth = byteDepth / 4; // break up the 4 components
+
   std::initializer_list<size_t> new_shape = {height, width, 3};
-  std::initializer_list<int64_t> strides = {width * byteDepth, byteDepth, 1};
+  // Note the negative stride for the last dimension, data comes in as BGRA
+  // we want to invert that to be ARGB
+  std::initializer_list<int64_t> strides = {width * byteDepth, byteDepth, -1};
+  // offset the buffer pointer (based on the byteDepth) to skip the alpha channel
+  // so we end up with just RGB
+  const uint8_t *offset_buf = static_cast<const uint8_t *>(pBuf) + out_byteDepth * 2;
 
   // Determine the dtype based on the element size
   nb::dlpack::dtype new_dtype;
-  switch (byteDepth / 4) {  // all RGB formats have 4 components in a single "pixel"
+  switch (out_byteDepth) {  // all RGB formats have 4 components in a single "pixel"
     case 1: new_dtype = nb::dtype<uint8_t>(); break;
     case 2: new_dtype = nb::dtype<uint16_t>(); break;
     case 4: new_dtype = nb::dtype<uint32_t>(); break;
@@ -97,7 +104,7 @@ np_array build_rgb_np_array(CMMCore &core, void *pBuf, unsigned width, unsigned 
   nb::capsule owner(pBuf, [](void *p) noexcept {});
 
   // Create the ndarray
-  return np_array(pBuf, new_shape, owner, strides, new_dtype);
+  return np_array(offset_buf, new_shape, owner, strides, new_dtype);
 }
 
 /** @brief Create a read-only NumPy array using core methods

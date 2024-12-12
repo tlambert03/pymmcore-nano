@@ -6,8 +6,8 @@ import numpy.testing as npt
 
 
 def test_image_ramps(demo_core: pmn.CMMCore):
-    width = 64
-    height = 64
+    width = 512
+    height = 512
     demo_core.setProperty("Camera", "OnCameraCCDXSize", width)
     demo_core.setProperty("Camera", "OnCameraCCDYSize", height)
     demo_core.setProperty("Camera", "Mode", "Color Test Pattern")
@@ -40,15 +40,18 @@ def test_image_ramps(demo_core: pmn.CMMCore):
 
     def _color_ramp(dtype: np.dtype) -> np.ndarray:
         max = np.iinfo(dtype).max
+        # i was a little surprised by the order of colors here, doesn't seem to match
+        # what the demo camera code is doing... but it does match what MMStudio outputs
+        # and i verified it with a real color camera...
         return np.array(
             [
-                [max, 0, 0],  # R
-                [0, max, 0],  # G
                 [0, 0, max],  # B
+                [0, max, 0],  # G
+                [max, 0, 0],  # R
                 [0, 0, 0],  # Black
-                [0, max, max],  # 1/R = Cyan
-                [max, 0, max],  # 1/G = Magenta
                 [max, max, 0],  # 1/B = Yellow
+                [max, 0, max],  # 1/G = Magenta
+                [0, max, max],  # 1/R = Cyan
                 [max, max, max],  # White
             ],
             dtype=dtype,
