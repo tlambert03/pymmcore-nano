@@ -81,5 +81,5 @@ build-adapter dir:
 
 release:
 	just version
-	git tag -a v$(shell python scripts/extract_version.py) -m "Release v$(shell python scripts/extract_version.py)"
+	git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
 	git push upstream --follow-tags
