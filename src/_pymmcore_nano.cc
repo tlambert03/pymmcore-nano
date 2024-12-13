@@ -83,7 +83,7 @@ np_array build_grayscale_np_array(CMMCore &core, void *pBuf, unsigned width, uns
 // so we create two constructors
 np_array build_rgb_np_array(CMMCore &core, void *pBuf, unsigned width, unsigned height,
                             unsigned byteDepth) {
-  const unsigned out_byteDepth = byteDepth / 4; // break up the 4 components
+  const unsigned out_byteDepth = byteDepth / 4;  // break up the 4 components
 
   std::initializer_list<size_t> new_shape = {height, width, 3};
   // Note the negative stride for the last dimension, data comes in as BGRA
