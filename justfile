@@ -78,3 +78,8 @@ build-adapter dir:
 	# file=$(find src/mmCoreAndDevices/DeviceAdapters/{{dir}}/builddir -type f -name 'libmmgr_dal_*' ! -name '*.p*') && \
 	# filename=$(basename "$file" | sed 's/\.[^.]*$//') && \
 	# cp "$file" "tests/adapters/$filename"
+
+release:
+	just version
+	git tag -a v$(shell python scripts/extract_version.py) -m "Release v$(shell python scripts/extract_version.py)"
+	git push upstream --follow-tags
