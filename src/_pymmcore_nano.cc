@@ -79,8 +79,8 @@ np_array build_grayscale_np_array(CMMCore &core, void *pBuf, unsigned width, uns
 }
 
 // only reason we're making two functions here is that i had a hell of a time
-// trying to create std::initializer_list dynamically based on numComponents (only on Linux)
-// so we create two constructors
+// trying to create std::initializer_list dynamically based on numComponents
+// (only on Linux) so we create two constructors
 np_array build_rgb_np_array(CMMCore &core, void *pBuf, unsigned width, unsigned height,
                             unsigned byteDepth) {
   const unsigned out_byteDepth = byteDepth / 4;  // break up the 4 components
@@ -89,8 +89,8 @@ np_array build_rgb_np_array(CMMCore &core, void *pBuf, unsigned width, unsigned 
   // Note the negative stride for the last dimension, data comes in as BGRA
   // we want to invert that to be ARGB
   std::initializer_list<int64_t> strides = {width * byteDepth, byteDepth, -1};
-  // offset the buffer pointer (based on the byteDepth) to skip the alpha channel
-  // so we end up with just RGB
+  // offset the buffer pointer (based on the byteDepth) to skip the alpha
+  // channel so we end up with just RGB
   const uint8_t *offset_buf = static_cast<const uint8_t *>(pBuf) + out_byteDepth * 2;
 
   // Determine the dtype based on the element size
@@ -168,6 +168,41 @@ np_array create_metadata_array(CMMCore &core, void *pBuf, const Metadata md) {
   } else {
     return build_grayscale_np_array(core, pBuf, width, height, bytesPerPixel);
   }
+}
+
+void validate_slm_image(const nb::ndarray<uint8_t> &pixels, long expectedWidth,
+                        long expectedHeight, long bytesPerPixel) {
+  // Check dtype
+  if (pixels.dtype() != nb::dtype<uint8_t>()) {
+    throw std::invalid_argument("Pixel array type is wrong. Expected uint8.");
+  }
+
+  // Check dimensions
+  if (pixels.ndim() != 2 && pixels.ndim() != 3) {
+    throw std::invalid_argument(
+        "Pixels must be a 2D numpy array [h,w] of uint8, or a 3D numpy array "
+        "[h,w,c] of uint8 with 3 color channels [R,G,B].");
+  }
+
+  // Check shape
+  if (pixels.shape(0) != expectedHeight || pixels.shape(1) != expectedWidth) {
+    throw std::invalid_argument(
+        "Image dimensions are wrong for this SLM. Expected (" + std::to_string(expectedHeight) +
+        ", " + std::to_string(expectedWidth) + "), but received (" +
+        std::to_string(pixels.shape(0)) + ", " + std::to_string(pixels.shape(1)) + ").");
+  }
+
+  // Check total bytes
+  long expectedBytes = expectedWidth * expectedHeight * bytesPerPixel;
+  if (pixels.nbytes() != expectedBytes) {
+    throw std::invalid_argument("Image size is wrong for this SLM. Expected " +
+                                std::to_string(expectedBytes) + " bytes, but received " +
+                                std::to_string(pixels.nbytes()) +
+                                " bytes. Does this SLM support RGB?");
+  }
+
+  // Ensure C-contiguous layout
+  // TODO
 }
 
 ///////////////// Trampoline class for MMEventCallback ///////////////////
@@ -754,7 +789,8 @@ NB_MODULE(_pymmcore_nano, m) {
           [](CMMCore& self,
              nb::object filename,  // accept any object that can be cast to a string (e.g. Path)
              bool truncate) {
-    self.setPrimaryLogFile(nb::str(filename).c_str(), truncate);  // convert to string
+    self.setPrimaryLogFile(nb::str(filename).c_str(),
+                           truncate); // convert to string
           },
           "filename"_a, "truncate"_a = false)
 
@@ -772,8 +808,8 @@ NB_MODULE(_pymmcore_nano, m) {
           [](CMMCore& self,
              nb::object filename,  // accept any object that can be cast to a string (e.g. Path)
              bool enableDebug, bool truncate, bool synchronous) {
-    return self.startSecondaryLogFile(nb::str(filename).c_str(), enableDebug, truncate,
-                                      synchronous);
+    return self.startSecondaryLogFile(nb::str(filename).c_str(), enableDebug,
+                                      truncate, synchronous);
           },
           "filename"_a, "enableDebug"_a, "truncate"_a = true, "synchronous"_a = false)
       .def("stopSecondaryLogFile", &CMMCore::stopSecondaryLogFile, "handle"_a)
@@ -917,15 +953,15 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("getROI",
            [](CMMCore& self) {
     int x, y, xSize, ySize;
-    self.getROI(x, y, xSize, ySize);             // Call C++ method
-    return std::make_tuple(x, y, xSize, ySize);  // Return a tuple
+    self.getROI(x, y, xSize, ySize);            // Call C++ method
+    return std::make_tuple(x, y, xSize, ySize); // Return a tuple
            })
       .def(
           "getROI",
           [](CMMCore& self, const char* label) {
     int x, y, xSize, ySize;
-    self.getROI(label, x, y, xSize, ySize);      // Call the C++ method
-    return std::make_tuple(x, y, xSize, ySize);  // Return as Python tuple
+    self.getROI(label, x, y, xSize, ySize);     // Call the C++ method
+    return std::make_tuple(x, y, xSize, ySize); // Return as Python tuple
           },
           "label"_a)
       .def("clearROI", &CMMCore::clearROI)
@@ -1224,10 +1260,18 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("readFromSerialPort", &CMMCore::readFromSerialPort, "portLabel"_a)
 
       // SLM Control
-      .def("setSLMImage", nb::overload_cast<const char*, unsigned char*>(&CMMCore::setSLMImage),
+      // setSLMImage accepts a second argument (pixels) of either unsigned char* or unsigned int*
+      .def("setSLMImage", [](CMMCore& self, const char* slmLabel, const nb::ndarray<uint8_t> &pixels) -> void
+          {
+              long expectedWidth = self.getSLMWidth(slmLabel);
+              long expectedHeight = self.getSLMHeight(slmLabel);
+              long bytesPerPixel = self.getSLMBytesPerPixel(slmLabel);
+              validate_slm_image(pixels, expectedWidth, expectedHeight, bytesPerPixel);
+
+              // Cast the numpy array to a pointer to unsigned char
+              self.setSLMImage(slmLabel, reinterpret_cast<unsigned char*>(pixels.data()));
+          },
            "slmLabel"_a, "pixels"_a)
-      //  .def("setSLMImage", nb::overload_cast<const char*, imgRGB32>(&CMMCore::setSLMImage),
-      //       "slmLabel"_a, "pixels"_a)
       .def("setSLMPixelsTo",
            nb::overload_cast<const char*, unsigned char>(&CMMCore::setSLMPixelsTo), "slmLabel"_a,
            "intensity"_a)
@@ -1246,7 +1290,17 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("getSLMSequenceMaxLength", &CMMCore::getSLMSequenceMaxLength, "slmLabel"_a)
       .def("startSLMSequence", &CMMCore::startSLMSequence, "slmLabel"_a)
       .def("stopSLMSequence", &CMMCore::stopSLMSequence, "slmLabel"_a)
-      //  .def("loadSLMSequence", &CMMCore::loadSLMSequence, "slmLabel"_a, "imageSequence"_a)
+      .def("loadSLMSequence", [](CMMCore& self, const char* slmLabel, std::vector<nb::ndarray<uint8_t>> &imageSequence) -> void {
+        long expectedWidth = self.getSLMWidth(slmLabel);
+        long expectedHeight = self.getSLMHeight(slmLabel);
+        long bytesPerPixel = self.getSLMBytesPerPixel(slmLabel);
+        std::vector<unsigned char*> inputVector;
+        for (auto &image : imageSequence) {
+          validate_slm_image(image, expectedWidth, expectedHeight, bytesPerPixel);
+          inputVector.push_back(reinterpret_cast<unsigned char*>(image.data()));
+        }
+        self.loadSLMSequence(slmLabel, inputVector);
+      },"slmLabel"_a, "pixels"_a)
 
       // Galvo Control
       .def("pointGalvoAndFire", &CMMCore::pointGalvoAndFire, "galvoLabel"_a, "x"_a, "y"_a,
@@ -1256,9 +1310,9 @@ NB_MODULE(_pymmcore_nano, m) {
       .def("setGalvoPosition", &CMMCore::setGalvoPosition, "galvoLabel"_a, "x"_a, "y"_a)
       .def("getGalvoPosition",
            [](CMMCore& self, const char* galvoLabel) {
-    double x, y;
-    self.getGalvoPosition(galvoLabel, x, y);  // Call C++ method
-    return std::make_tuple(x, y);             // Return a tuple
+      double x, y;
+      self.getGalvoPosition(galvoLabel, x, y); // Call C++ method
+      return std::make_tuple(x, y);            // Return a tuple
            })
       .def("setGalvoIlluminationState", &CMMCore::setGalvoIlluminationState, "galvoLabel"_a,
            "on"_a)
