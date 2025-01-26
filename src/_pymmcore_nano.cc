@@ -14,7 +14,7 @@ namespace nb = nanobind;
 
 using namespace nb::literals;
 
-const std::string PYMMCORE_NANO_VERSION = "0.dev3";
+const std::string PYMMCORE_NANO_VERSION = "0";
 
 ///////////////// NUMPY ARRAY HELPERS ///////////////////
 

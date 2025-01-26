@@ -86,5 +86,5 @@ release:
 	{{ python }} scripts/build_stubs.py
 	git diff-index HEAD -- || (echo "Uncommitted changes" && exit 1)
 	git branch --show-current | grep -q main || (echo "Not on main branch" && exit 1)
-	git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
-	git push upstream --follow-tags
+	# git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
+	# git push upstream --follow-tags
