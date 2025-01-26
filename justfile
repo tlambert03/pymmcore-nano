@@ -46,6 +46,7 @@ clean-cov:
 # update version in meson.build
 version:
 	meson rewrite kwargs set project / version $({{ python }} scripts/extract_version.py)
+	{{ python }} scripts/build_stubs.py
 
 # run pre-commit checks
 check:
@@ -79,12 +80,8 @@ build-adapter dir:
 	# filename=$(basename "$file" | sed 's/\.[^.]*$//') && \
 	# cp "$file" "tests/adapters/$filename"
 
-# if there are uncommitted changes or we are not on main, exit with error
+# MUST run just version and commit changes before.
 release:
-	git diff-index --quiet HEAD -- || (echo "Uncommitted changes before release steps" && exit 1)
-	meson rewrite kwargs set project / version $({{ python }} scripts/extract_version.py)
-	{{ python }} scripts/build_stubs.py
-	git diff-index --quiet HEAD -- || (echo "Uncommitted changes" && exit 1)
 	git branch --show-current | grep -q main || (echo "Not on main branch" && exit 1)
-	# git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
-	# git push upstream --follow-tags
+	git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
+	git push upstream --follow-tags
