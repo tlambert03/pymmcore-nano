@@ -35,7 +35,7 @@ uv sync --no-install-project
 just install
 ```
 
-### test
+### Test
 
 Regardless of whether the environment is active, you can run:
 
@@ -48,5 +48,56 @@ just test-cov
 or, if the environment is active:
 
 ```sh
+pytest
+```
+
+### Building Device Adapters
+
+This repo contains a few device adapters that are useful for testing,
+in src/mmCoreAndDevices/DeviceAdapters.  To build these, you can run:
+
+```sh
+just build-devices
+```
+
+Or, to build a specific device within the DeviceAdapters subdirectory, you can run:
+
+```sh
+just build-adapter DemoCamera
+```
+
+### Updating `mmCoreAndDevices` source code
+
+Rather than using git submodules, this repository checks in the
+[`mmCoreAndDevices`](https://github.com/micro-manager/mmCoreAndDevices) source
+code. This makes measuring C++ code coverage easier, as the `mmCoreAndDevices`
+code is included in the same repository (see codecov results
+[here](https://app.codecov.io/gh/pymmcore-plus/pymmcore-nano/tree/main/src%2FmmCoreAndDevices)),
+and it also makes it easier to make changes to the `mmCoreAndDevices` code
+directly from this repository (e.g., to fix bugs or add features that are
+pending in the upstream repo).
+
+To bring in new changes from the upstream `mmCoreAndDevices` repository, you can
+run two scripts:
+
+```python
+python scripts/update_sources.py
+python scripts/patch_sources.py
+```
+
+The first script (`update_sources.py`) will update the `src/mmCoreAndDevices`
+directory with the latest changes from the `mmCoreAndDevices` repository,
+*overwriting* any changes in the local repo.
+
+The second script (`patch_sources.py`) replays all of the changes that we
+want to make to the sources in order to build the project. This includes changes
+to the `CMakeLists.txt` files.  This essentially means that all changes to the
+source MUST be `patch_sources.py`, which serves as a nice record of changes that
+should be upstreamed.
+
+After running these scripts, you can test the build and python code as usual.
+
+```sh
+just build
 pytest
 ```
