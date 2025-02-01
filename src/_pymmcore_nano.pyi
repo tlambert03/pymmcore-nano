@@ -791,7 +791,7 @@ class MetadataTag:
 
 Misconfigured: int = -1
 NoAction: int = 0
-PYMMCORE_NANO_VERSION: str = "0"
+PYMMCORE_NANO_VERSION: str = "1"
 
 class PortType(enum.IntEnum):
     InvalidPort = 0

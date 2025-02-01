@@ -66,6 +66,15 @@ Or, to build a specific device within the DeviceAdapters subdirectory, you can r
 just build-adapter DemoCamera
 ```
 
+### Releasing
+
+To release a new version:
+
+- update the `PYMMCORE_NANO_VERSION` value in [`_pymmcore_nano.cc`](./src/_pymmcore_nano.cc)
+- run `just version`
+- commit changes to main
+- run `just release`
+
 ### Updating `mmCoreAndDevices` source code
 
 Rather than using git submodules, this repository checks in the
