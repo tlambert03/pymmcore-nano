@@ -4,12 +4,14 @@ builddir := `ls -d build/cp3* 2>/dev/null | head -n 1`
 
 # install deps and editable package for development
 install:
+	rm -rf build dist builddir
 	uv sync --no-install-project
 	uv pip install -e . \
 		--no-build-isolation \
 		--no-deps \
 		--force-reinstall \
 		# -C=setup-args="-Db_coverage=true" \
+		# -C=setup-args="-Dhold_gil=true" \
 		-C=setup-args="-Dbuildtype=debugoptimized" \
 		-C=editable-verbose=true -v
 

@@ -85,6 +85,11 @@ if host_machine.system() == 'windows'
     cpp_args += ['-DNOMINMAX', '-D_CRT_SECURE_NO_WARNINGS']
 endif
 
+hold_gil_opt = get_option('hold_gil')
+if hold_gil_opt
+    cpp_args += ['-DHOLD_GIL']
+endif
+
 ext_module = py.extension_module(
     '_pymmcore_nano',
     sources: ['src/_pymmcore_nano.cc'] + mmcore_sources,
