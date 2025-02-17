@@ -89,5 +89,5 @@ release:
 	git push upstream --follow-tags
 
 docs-serve:
-	uv pip install . --force-reinstall -C=setup-args="-Dmatch_swig=false" -C=setup-args="-Dbuildtype=release" 
-	mkdocs serve
+	uv run --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs serve
+	
