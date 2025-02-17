@@ -90,4 +90,3 @@ release:
 
 docs-serve:
 	uv run --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs serve
-	
