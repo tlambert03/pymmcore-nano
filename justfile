@@ -89,4 +89,4 @@ release:
 	git push upstream --follow-tags
 
 docs-serve:
-	uv run --no-editable --force-reinstall -C=setup-args="-Dmatch_swig=false" mkdocs serve
+	uv run --group docs --no-editable --force-reinstall -C=setup-args="-Dmatch_swig=false" mkdocs serve

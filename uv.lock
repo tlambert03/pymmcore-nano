@@ -1251,10 +1251,6 @@ dev = [
     { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "ipython", version = "8.32.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "meson-python" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "mkdocs-minify-plugin" },
-    { name = "mkdocstrings-python" },
     { name = "mypy" },
     { name = "nanobind" },
     { name = "ninja" },
@@ -1266,6 +1262,12 @@ dev = [
     { name = "ruff" },
     { name = "rust-just" },
 ]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "mkdocs-minify-plugin" },
+    { name = "mkdocstrings-python" },
+]
 
 [package.metadata]
 requires-dist = [{ name = "numpy", specifier = ">=1.25" }]
@@ -1276,10 +1278,6 @@ dev = [
     { name = "gcovr" },
     { name = "ipython" },
     { name = "meson-python" },
-    { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-material", specifier = ">=9.6.4" },
-    { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },
-    { name = "mkdocstrings-python", specifier = ">=1.16.0" },
     { name = "mypy" },
     { name = "nanobind" },
     { name = "ninja" },
@@ -1290,6 +1288,12 @@ dev = [
     { name = "rich" },
     { name = "ruff" },
     { name = "rust-just" },
+]
+docs = [
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-material", specifier = ">=9.6.4" },
+    { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },
+    { name = "mkdocstrings-python", specifier = ">=1.16.0" },
 ]
 
 [[package]]

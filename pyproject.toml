@@ -48,6 +48,8 @@ dev = [
     "rich",
     "ruff",
     "rust-just",
+]
+docs = [
     "mkdocs>=1.6.1",
     "mkdocstrings-python>=1.16.0",
     "mkdocs-material>=9.6.4",

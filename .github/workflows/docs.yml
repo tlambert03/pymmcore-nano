@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  build-docs:
     runs-on: ubuntu-latest
     env:
         UV_FROZEN: 1
@@ -28,8 +28,13 @@ jobs:
 
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: uv run --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs gh-deploy --strict --force
+        run: uv run --group docs --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs gh-deploy --strict --force
 
       - name: Test docs
         if: github.event_name == 'pull_request'
-        run: uv run --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs build --strict
+        run: uv run --group docs --no-editable -C=setup-args="-Dmatch_swig=false" mkdocs build --strict
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: site

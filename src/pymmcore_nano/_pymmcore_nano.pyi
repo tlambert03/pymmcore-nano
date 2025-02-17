@@ -533,7 +533,7 @@ class CMMError(RuntimeError):
 
 class Configuration:
     """
-    Encapsulation of  configuration information
+    Encapsulation of  configuration information.
 
     A configuration is a collection of device property settings.
     """
