@@ -87,3 +87,7 @@ release:
 	git branch --show-current | grep -q main || (echo "Not on main branch" && exit 1)
 	git tag -a v$({{ python }} scripts/extract_version.py) -m "Release v$({{ python }} scripts/extract_version.py)"
 	git push upstream --follow-tags
+
+docs-serve:
+	uv pip install . --force-reinstall -C=setup-args="-Dmatch_swig=false" -C=setup-args="-Dbuildtype=release" 
+	mkdocs serve
