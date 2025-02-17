@@ -55,6 +55,10 @@ plugins:
   - autorefs:
       resolve_closest: true
   - search
+  - minify:
+      minify_html: true
+      minify_css: true
+      cache_safe: true
   - mkdocstrings:
       handlers:
         python:

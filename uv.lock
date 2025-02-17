@@ -763,19 +763,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mkdocs-api-autonav"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mkdocs" },
-    { name = "mkdocstrings-python" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/45/c70b41262edc8656bc997281800e5cdc05dc453dbcbc233e7983743adb05/mkdocs_api_autonav-0.1.2.tar.gz", hash = "sha256:50d69f0440cc28918e151d9317f5643b11baea023876673155445c8d32ec2add", size = 53107 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/58/3d8e8e908150c07628dfa0c4f8ea596e111fab3ea1ade4c2f1c75dc80355/mkdocs_api_autonav-0.1.2-py3-none-any.whl", hash = "sha256:369e9e21730d22487be55db899dced2c63c37f56087044081911e494a2f6a4b6", size = 10355 },
-]
-
-[[package]]
 name = "mkdocs-autorefs"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1265,7 +1252,6 @@ dev = [
     { name = "ipython", version = "8.32.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "meson-python" },
     { name = "mkdocs" },
-    { name = "mkdocs-api-autonav" },
     { name = "mkdocs-material" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocstrings-python" },
@@ -1291,7 +1277,6 @@ dev = [
     { name = "ipython" },
     { name = "meson-python" },
     { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-api-autonav", specifier = ">=0.1.2" },
     { name = "mkdocs-material", specifier = ">=9.6.4" },
     { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },
     { name = "mkdocstrings-python", specifier = ">=1.16.0" },
