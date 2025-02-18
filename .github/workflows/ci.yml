@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   build-devices:
-    name: Build adapter
+    name: Build device adapters
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -31,7 +31,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
-      - run: uv run --no-install-project just build-devices
+      - run: uv run --no-project just build-devices
 
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
