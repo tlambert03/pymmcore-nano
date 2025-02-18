@@ -285,4 +285,9 @@ class SignalIODeviceHandle : public DeviceHandle {
     SignalIODeviceHandle(CMMCore *core, const std::string &label) : DeviceHandle(core, label) {}
 };
 
+class GenericDeviceHandle : public DeviceHandle {
+  public:
+    GenericDeviceHandle(CMMCore *core, const std::string &label) : DeviceHandle(core, label) {}
+};
+
 #endif // DEVICEHANDLE_H

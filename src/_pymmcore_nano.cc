@@ -915,10 +915,20 @@ NB_MODULE(_pymmcore_nano, m) {
 
     // SLMDeviceHandle
     nb::class_<SLMDeviceHandle, DeviceHandle>(m, "SLMDevice")
-        .def("setImage", nb::overload_cast<unsigned char *>(&SLMDeviceHandle::setImage),
-             "pixels"_a)
-        .def("setImage", nb::overload_cast<unsigned int *>(&SLMDeviceHandle::setImage),
-             "pixels"_a)
+        //    .def("setImage", nb::overload_cast<unsigned char *>(&SLMDeviceHandle::setImage),
+        //         "pixels"_a)
+        .def(
+            "setImage",
+            [](SLMDeviceHandle &self, const nb::ndarray<uint8_t> &pixels) -> void {
+                long expectedWidth = self.getWidth();
+                long expectedHeight = self.getHeight();
+                long bytesPerPixel = self.getBytesPerPixel();
+                validate_slm_image(pixels, expectedWidth, expectedHeight, bytesPerPixel);
+
+                // Cast the numpy array to a pointer to unsigned char
+                self.setImage(reinterpret_cast<unsigned char *>(pixels.data()));
+            },
+            "pixels"_a RGIL)
         .def("setPixelsTo", nb::overload_cast<unsigned char>(&SLMDeviceHandle::setPixelsTo),
              "intensity"_a)
         .def("setPixelsTo",
@@ -979,9 +989,10 @@ NB_MODULE(_pymmcore_nano, m) {
         .def("getLoadedPeripheralDevices", &HubDeviceHandle::getLoadedPeripheralDevices);
 
     nb::class_<ImageProcessorDeviceHandle, DeviceHandle>(m, "ImageProcessorDevice");
-    nb::class_<SignalIODeviceHandle, DeviceHandle>(m, "SignalIODeviceHandle");
-    nb::class_<MagnifierDeviceHandle, DeviceHandle>(m, "MagnifierDeviceHandle");
-    nb::class_<AutoFocusDeviceHandle, DeviceHandle>(m, "AutoFocusDeviceHandle");
+    nb::class_<SignalIODeviceHandle, DeviceHandle>(m, "SignalIODevice");
+    nb::class_<MagnifierDeviceHandle, DeviceHandle>(m, "MagnifierDevice");
+    nb::class_<AutoFocusDeviceHandle, DeviceHandle>(m, "AutoFocusDevice");
+    nb::class_<GenericDeviceHandle, DeviceHandle>(m, "GenericDevice");
 
     //////////////////// MMCore ////////////////////
 

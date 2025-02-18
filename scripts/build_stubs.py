@@ -21,54 +21,54 @@ get_device_overloads = r"""
     def getDeviceObject(
         self, device_label: str, device_type: Literal[DeviceType.XYStageDevice]
     ) -> XYStageDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.StageDevice]
-    # ) -> StageDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.StateDevice]
-    # ) -> StateDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.ShutterDevice]
-    # ) -> ShutterDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.SerialDevice]
-    # ) -> SerialDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.GenericDevice]
-    # ) -> GenericDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.AutoFocusDevice]
-    # ) -> AutoFocusDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.ImageProcessorDevice]
-    # ) -> ImageProcessorDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.SignalIODevice]
-    # ) -> SignalIODevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.MagnifierDevice]
-    # ) -> MagnifierDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.SLMDevice]
-    # ) -> SLMDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.HubDevice]
-    # ) -> HubDevice: ...
-    # @overload
-    # def getDeviceObject(
-    #     self, device_label: str, device_type: Literal[DeviceType.GalvoDevice]
-    # ) -> GalvoDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.StageDevice]
+    ) -> StageDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.StateDevice]
+    ) -> StateDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.ShutterDevice]
+    ) -> ShutterDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.SerialDevice]
+    ) -> SerialDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.GenericDevice]
+    ) -> GenericDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.AutoFocusDevice]
+    ) -> AutoFocusDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.ImageProcessorDevice]
+    ) -> ImageProcessorDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.SignalIODevice]
+    ) -> SignalIODevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.MagnifierDevice]
+    ) -> MagnifierDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.SLMDevice]
+    ) -> SLMDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.HubDevice]
+    ) -> HubDevice: ...
+    @overload
+    def getDeviceObject(
+        self, device_label: str, device_type: Literal[DeviceType.GalvoDevice]
+    ) -> GalvoDevice: ...
     @overload
     def getDeviceObject(
 """
