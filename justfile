@@ -60,7 +60,7 @@ pull-mmcore:
 build-devices:
 	just build-adapter DemoCamera
 	just build-adapter Utilities
-	# just build-adapter SequenceTester
+	just build-adapter SequenceTester
 
 build-mmdevice:
 	meson setup src/mmCoreAndDevices/MMDevice/builddir src/mmCoreAndDevices/MMDevice
