@@ -26,21 +26,12 @@ jobs:
         with:
           toolset: "14.29"
 
-      - if: matrix.platform == 'windows-latest'
-        run: |
-          echo "Checking which link.exe is being used..."
-          where link
-          echo "Checking the full path of link.exe..."
-          Get-Command link | Format-List
-
       - if: matrix.platform == 'ubuntu-latest'
         run: sudo apt update && sudo apt install -y libboost-all-dev
       - if: matrix.platform == 'macos-latest'
         run: brew install boost
       - if: matrix.platform == 'windows-latest'
-        run: |
-          choco install boost-msvc-14.2 -y
-          where link
+        run: choco install boost-msvc-14.2 -y
 
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2

@@ -1,6 +1,7 @@
 env_dir := if os_family() == "windows" { "./.venv/Scripts" } else { "./.venv/bin" }
 python := env_dir + if os_family() == "windows" { "/python.exe" } else { "/python3" }
 builddir := `ls -d build/cp3* 2>/dev/null | head -n 1`
+set windows-shell := ["pwsh", "-NoLogo", "-NoProfileLoadTime", "-Command"]
 
 # install deps and editable package for development
 install:
