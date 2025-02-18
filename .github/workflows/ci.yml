@@ -35,7 +35,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
-      - run: uv run just build-devices
+      - run: uv run --only-group build just build-devices
 
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
