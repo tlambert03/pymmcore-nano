@@ -7,7 +7,7 @@ version : '11.3.0.71.1',
   meson_version : '>= 1.2.0',
   default_options : ['cpp_std=c++17']
 )
-py = import('python').find_installation()
+py = import('python').find_installation(pure: false)
 nanobind_dep = dependency('nanobind', static: true)
 
 # Run a command to get the Python include path
@@ -79,16 +79,19 @@ run_command(py.full_path(), 'scripts/patch_sources.py', check: true)
 
 # --------------------------
 
-cpp_args = ['-DMMDEVICE_CLIENT_BUILD', '-DMATCH_SWIG']
+cpp_args = ['-DMMDEVICE_CLIENT_BUILD']
 
 if host_machine.system() == 'windows'
     cpp_args += ['-DNOMINMAX', '-D_CRT_SECURE_NO_WARNINGS']
 endif
 
-hold_gil_opt = get_option('hold_gil')
-if hold_gil_opt
+if get_option('hold_gil')
     cpp_args += ['-DHOLD_GIL']
 endif
+if get_option('match_swig')
+    cpp_args += ['-DMATCH_SWIG']
+endif
+
 
 ext_module = py.extension_module(
     '_pymmcore_nano',
@@ -96,6 +99,7 @@ ext_module = py.extension_module(
     dependencies: [nanobind_dep],
     include_directories: include_dirs,
     install: true,
+    subdir: 'pymmcore_nano',
     cpp_args: cpp_args + ['-DNB_DOMAIN=pmn'],
 )
 
@@ -109,7 +113,7 @@ custom_target(
         py.full_path(),
         meson.project_source_root() + '/scripts/build_stubs.py',
         ext_module.full_path(),
-        meson.project_source_root() + '/src/_pymmcore_nano.pyi',
+        meson.project_source_root() + '/src/pymmcore_nano/_pymmcore_nano.pyi',
     ],
     depends: ext_module,
 )
@@ -123,8 +127,8 @@ install_subdir(
 
 # also install the stubs into the site-packages directory
 install_data(
-    'src/_pymmcore_nano.pyi',
-    install_dir: py.get_install_dir(),
+    'src/pymmcore_nano/_pymmcore_nano.pyi',
+    install_dir: py.get_install_dir() / 'pymmcore_nano',
 )
 
 test(
