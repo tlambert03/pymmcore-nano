@@ -26,6 +26,16 @@ jobs:
         with:
           toolset: "14.29"
 
+      # Ensure Git for Windows does not interfere with MSVC
+      - if: matrix.platform == 'windows-latest'
+        run: |
+          echo "Before fixing PATH:"
+          where link
+          echo "Removing Git for Windows from PATH..."
+          $env:Path = ($env:Path -split ';' | Where-Object { $_ -notmatch "Git\\usr\\bin" }) -join ';'
+          echo "After fixing PATH:"
+          where link
+
       - if: matrix.platform == 'ubuntu-latest'
         run: sudo apt update && sudo apt install -y libboost-all-dev
       - if: matrix.platform == 'macos-latest'
