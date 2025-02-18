@@ -18,6 +18,11 @@ python_include_path = run_command(
 # Include the subprojects.
 subdir('src/mmCoreAndDevices/MMDevice')
 subdir('src/mmCoreAndDevices/MMCore')
+if get_option('build_device_adapters')
+    subdir('src/mmCoreAndDevices/DeviceAdapters/DemoCamera')
+    subdir('src/mmCoreAndDevices/DeviceAdapters/Utilities')
+    subdir('src/mmCoreAndDevices/DeviceAdapters/SequenceTester')
+endif
 
 mmdevice_dep = dependency('mmdevice_dep')
 mmcore_dep   = dependency('mmcore_dep')

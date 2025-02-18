@@ -3,22 +3,6 @@ if cxx.get_id() in ['msvc', 'clang-cl']
     add_project_arguments('-DNOMINMAX', language: 'cpp')
 endif
 
-# MMDevice must be copied into subprojects/ for this experimental build to work
-# (unless MMCore is itself being used as a subproject).
-if get_option('tests').enabled()
-    tests_option = 'enabled'
-elif get_option('tests').disabled()
-    tests_option = 'disabled'
-else
-    tests_option = 'auto'
-endif
-# mmdevice_proj = subproject(
-#     'MMDevice',
-#     default_options: {
-#         'client_interface': true,
-#         'tests': tests_option,
-#     },
-# )
 mmdevice_dep = dependency('mmdevice_dep')
 
 mmcore_sources = files(
@@ -63,20 +47,6 @@ mmcore_sources = files(
 )
 
 mmcore_include_dir = include_directories('.')
-
-mmcore_public_headers = files(
-    'Configuration.h',
-    'Error.h',
-    'ErrorCodes.h',
-    'Logging/GenericLogger.h',
-    'Logging/Logger.h',
-    'Logging/Metadata.h',
-    'Logging/GenericMetadata.h',
-    'MMCore.h',
-    'MMEventCallback.h',
-)
-# Note that the MMDevice headers are also needed; which of those are part of
-# MMCore's public interface is poorly defined at the moment.
 
 # TODO Allow MMCore to be built as a shared library, too. For that, we'd need
 # to define the exported symbols on Windows (__declspec(dllexport)).
