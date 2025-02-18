@@ -26,11 +26,12 @@ jobs:
         with:
           toolset: "14.29"
 
-      # Fix PATH ordering on Windows to prioritize MSVC's link.exe
       - if: matrix.platform == 'windows-latest'
         run: |
-          echo "$Env:VCToolsInstallDir\bin\HostX64\x64" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8
-          echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8
+          echo "Checking which link.exe is being used..."
+          where link
+          echo "Checking the full path of link.exe..."
+          Get-Command link | Format-List
 
       - if: matrix.platform == 'ubuntu-latest'
         run: sudo apt update && sudo apt install -y libboost-all-dev
