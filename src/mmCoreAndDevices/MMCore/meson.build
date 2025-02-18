@@ -1,8 +1,3 @@
-cxx = meson.get_compiler('cpp')
-if cxx.get_id() in ['msvc', 'clang-cl']
-    add_project_arguments('-DNOMINMAX', language: 'cpp')
-endif
-
 mmdevice_dep = dependency('mmdevice_dep')
 
 mmcore_sources = files(
@@ -48,6 +43,14 @@ mmcore_sources = files(
 
 mmcore_include_dir = include_directories('.')
 
+cpp_args = [
+        '-D_CRT_SECURE_NO_WARNINGS',
+        '-DMMDEVICE_CLIENT_BUILD',
+]
+if host_machine.system() == 'windows'
+    cpp_args += '-DNOMINMAX'
+endif
+
 # TODO Allow MMCore to be built as a shared library, too. For that, we'd need
 # to define the exported symbols on Windows (__declspec(dllexport)).
 mmcore_lib = static_library(
@@ -58,10 +61,7 @@ mmcore_lib = static_library(
         mmdevice_dep,
         dependency('threads'),
     ],
-    cpp_args: [
-        '-D_CRT_SECURE_NO_WARNINGS', # TODO Eliminate the need
-        '-DMMDEVICE_CLIENT_BUILD',
-    ],
+    cpp_args: cpp_args,
 )
 
 
