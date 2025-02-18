@@ -26,22 +26,20 @@ jobs:
         with:
           toolset: "14.29"
 
-      # Ensure Git for Windows does not interfere with MSVC
+      # Fix PATH ordering on Windows to prioritize MSVC's link.exe
       - if: matrix.platform == 'windows-latest'
         run: |
-          echo "Before fixing PATH:"
-          where link
-          echo "Removing Git for Windows from PATH..."
-          $env:Path = ($env:Path -split ';' | Where-Object { $_ -notmatch "Git\\usr\\bin" }) -join ';'
-          echo "After fixing PATH:"
-          where link
+          echo "$Env:VCToolsInstallDir\bin\HostX64\x64" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8
+          echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8
 
       - if: matrix.platform == 'ubuntu-latest'
         run: sudo apt update && sudo apt install -y libboost-all-dev
       - if: matrix.platform == 'macos-latest'
         run: brew install boost
       - if: matrix.platform == 'windows-latest'
-        run: choco install boost-msvc-14.2 -y
+        run: |
+          choco install boost-msvc-14.2 -y
+          where link
 
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
