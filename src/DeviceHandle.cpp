@@ -3,11 +3,6 @@
 // ------------------------------------------------------------------
 // PropertyHandle
 // ------------------------------------------------------------------
-PropertyHandle::PropertyHandle(CMMCore *core, const std::string &deviceLabel,
-                               const std::string &propertyName)
-    : core_(core), device_label_(deviceLabel), property_name_(propertyName) {}
-
-PropertyHandle::~PropertyHandle() {}
 
 std::string PropertyHandle::getValue() {
     return core_->getProperty(device_label_.c_str(), property_name_.c_str());
@@ -84,10 +79,6 @@ void PropertyHandle::loadSequence(std::vector<std::string> eventSequence) {
 // ------------------------------------------------------------------
 // DeviceHandle
 // ------------------------------------------------------------------
-DeviceHandle::DeviceHandle(CMMCore *core, const std::string &label)
-    : core_(core), label_(label) {}
-
-DeviceHandle::~DeviceHandle() {}
 
 MM::DeviceType DeviceHandle::getType() { return core_->getDeviceType(label_.c_str()); }
 
@@ -131,11 +122,68 @@ void DeviceHandle::setDelayMs(double delayMs) {
 
 bool DeviceHandle::usesDelay() { return core_->usesDeviceDelay(label_.c_str()); }
 
+void DeviceHandle::unload() { core_->unloadDevice(label_.c_str()); }
+
+void DeviceHandle::initialize() { core_->initializeDevice(label_.c_str()); }
+
+DeviceInitializationState DeviceHandle::getInitializationState() {
+    return core_->getDeviceInitializationState(label_.c_str());
+}
+
+void DeviceHandle::setParentLabel(const char *parentHubLabel) {
+    core_->setParentLabel(label_.c_str(), parentHubLabel);
+}
+
+std::string DeviceHandle::getParentLabel() { return core_->getParentLabel(label_.c_str()); }
+
+// ------------------------------------------------------------------
+// StageDeviceHandle
+// ------------------------------------------------------------------
+
+void StageDeviceHandle::setPosition(double pos) { core_->setPosition(label_.c_str(), pos); }
+
+double StageDeviceHandle::getPosition() { return core_->getPosition(label_.c_str()); }
+
+void StageDeviceHandle::setRelativePosition(double distance) {
+    core_->setRelativePosition(label_.c_str(), distance);
+}
+
+void StageDeviceHandle::stop() { core_->stop(label_.c_str()); }
+
+void StageDeviceHandle::home() { core_->home(label_.c_str()); }
+
+void StageDeviceHandle::setOrigin() { core_->setOrigin(label_.c_str()); }
+
+bool StageDeviceHandle::isContinuousFocusDrive() {
+    core_->isContinuousFocusDrive(label_.c_str());
+}
+void StageDeviceHandle::setAdapterOrigin(double newZUm) {
+    core_->setAdapterOrigin(label_.c_str(), newZUm);
+}
+
+void StageDeviceHandle::setFocusDirection(int sign) {
+    core_->setFocusDirection(label_.c_str(), sign);
+}
+
+int StageDeviceHandle::getFocusDirection() { return core_->getFocusDirection(label_.c_str()); }
+
+bool StageDeviceHandle::isSequenceable() { return core_->isStageSequenceable(label_.c_str()); }
+
+void StageDeviceHandle::startSequence() { core_->startStageSequence(label_.c_str()); }
+
+void StageDeviceHandle::stopSequence() { core_->stopStageSequence(label_.c_str()); }
+
+long StageDeviceHandle::getSequenceMaxLength() {
+    return core_->getStageSequenceMaxLength(label_.c_str());
+}
+
+void StageDeviceHandle::loadSequence(const std::vector<double> &positions) {
+    core_->loadStageSequence(label_.c_str(), positions);
+}
+
 // ------------------------------------------------------------------
 // XYStageDeviceHandle
 // ------------------------------------------------------------------
-XYStageDeviceHandle::XYStageDeviceHandle(CMMCore *core, const std::string &label)
-    : DeviceHandle(core, label) {}
 
 void XYStageDeviceHandle::setPosition(double x, double y) {
     core_->setXYPosition(label_.c_str(), x, y);
@@ -190,13 +238,246 @@ void XYStageDeviceHandle::loadSequence(const std::vector<double> &xSequence,
 // CameraDeviceHandle
 // ------------------------------------------------------------------
 
-CameraDeviceHandle::CameraDeviceHandle(CMMCore *core, const std::string &label)
-    : DeviceHandle(core, label) {}
-
 void CameraDeviceHandle::setExposure(double exposure) {
     core_->setExposure(label_.c_str(), exposure);
 }
 
 double CameraDeviceHandle::getExposure() { return core_->getExposure(label_.c_str()); }
 
+void CameraDeviceHandle::startSequenceAcquisition(long numImages, double intervalMs,
+                                                  bool stopOnOverflow) {
+    core_->startSequenceAcquisition(label_.c_str(), numImages, intervalMs, stopOnOverflow);
+}
+
+void CameraDeviceHandle::prepareSequenceAcquisition() {
+    core_->prepareSequenceAcquisition(label_.c_str());
+}
+
+void CameraDeviceHandle::stopSequenceAcquisition() {
+    core_->stopSequenceAcquisition(label_.c_str());
+}
+
+bool CameraDeviceHandle::isSequenceRunning() { core_->isSequenceRunning(label_.c_str()); }
+
+bool CameraDeviceHandle::isSequenceable() { core_->isExposureSequenceable(label_.c_str()); }
+
+void CameraDeviceHandle::startSequence() { core_->startExposureSequence(label_.c_str()); }
+
+void CameraDeviceHandle::stopSequence() { core_->stopExposureSequence(label_.c_str()); }
+
+long CameraDeviceHandle::getSequenceMaxLength() {
+    core_->getExposureSequenceMaxLength(label_.c_str());
+}
+
+void CameraDeviceHandle::loadSequence(std::vector<double> exposureSequence_ms) {
+    core_->loadExposureSequence(label_.c_str(), exposureSequence_ms);
+}
+
 // ------------------------------------------------------------------
+// ShutterDeviceHandle
+// ------------------------------------------------------------------
+
+void ShutterDeviceHandle::setOpen(bool state) { core_->setShutterOpen(label_.c_str(), state); }
+
+bool ShutterDeviceHandle::isOpen() { return core_->getShutterOpen(label_.c_str()); }
+
+// ------------------------------------------------------------------
+// StateDeviceHandle
+// ------------------------------------------------------------------
+
+void StateDeviceHandle::setState(long state) { core_->setState(label_.c_str(), state); }
+
+long StateDeviceHandle::getState() { return core_->getState(label_.c_str()); }
+
+long StateDeviceHandle::getNumberOfStates() { return core_->getNumberOfStates(label_.c_str()); }
+
+void StateDeviceHandle::setStateLabel(const char *stateLabel) {
+    core_->setStateLabel(label_.c_str(), stateLabel);
+}
+
+std::string StateDeviceHandle::getStateLabel() { return core_->getStateLabel(label_.c_str()); }
+
+void StateDeviceHandle::defineStateLabel(long state, const char *stateLabel) {
+    core_->defineStateLabel(label_.c_str(), state, stateLabel);
+}
+
+std::vector<std::string> StateDeviceHandle::getStateLabels() {
+    return core_->getStateLabels(label_.c_str());
+}
+
+long StateDeviceHandle::getStateFromLabel(const char *stateLabel) {
+    return core_->getStateFromLabel(label_.c_str(), stateLabel);
+}
+
+// ------------------------------------------------------------------
+// SerialDeviceHandle
+// ------------------------------------------------------------------
+
+void SerialDeviceHandle::setProperties(const char *answerTimeout, const char *baudRate,
+                                       const char *delayBetweenCharsMs, const char *handshaking,
+                                       const char *parity, const char *stopBits) {
+    core_->setSerialProperties(label_.c_str(), answerTimeout, baudRate, delayBetweenCharsMs,
+                               handshaking, parity, stopBits);
+}
+
+void SerialDeviceHandle::setCommand(const char *command, const char *term) {
+    core_->setSerialPortCommand(label_.c_str(), command, term);
+}
+
+std::string SerialDeviceHandle::getAnswer(const char *term) {
+    return core_->getSerialPortAnswer(label_.c_str(), term);
+}
+
+void SerialDeviceHandle::write(const std::vector<char> &data) {
+    core_->writeToSerialPort(label_.c_str(), data);
+}
+
+std::vector<char> SerialDeviceHandle::read() {
+    return core_->readFromSerialPort(label_.c_str());
+}
+
+// ------------------------------------------------------------------
+// SLMDeviceHandle
+// ------------------------------------------------------------------
+
+void SLMDeviceHandle::setImage(unsigned char *pixels) noexcept(false) {
+    core_->setSLMImage(label_.c_str(), pixels);
+}
+
+void SLMDeviceHandle::setImage(imgRGB32 pixels) noexcept(false) {
+    core_->setSLMImage(label_.c_str(), pixels);
+}
+
+void SLMDeviceHandle::setPixelsTo(unsigned char intensity) noexcept(false) {
+    core_->setSLMPixelsTo(label_.c_str(), intensity);
+}
+
+void SLMDeviceHandle::setPixelsTo(unsigned char red, unsigned char green,
+                                  unsigned char blue) noexcept(false) {
+    core_->setSLMPixelsTo(label_.c_str(), red, green, blue);
+}
+
+void SLMDeviceHandle::displayImage() noexcept(false) { core_->displaySLMImage(label_.c_str()); }
+
+void SLMDeviceHandle::setExposure(double exposure_ms) noexcept(false) {
+    core_->setSLMExposure(label_.c_str(), exposure_ms);
+}
+
+double SLMDeviceHandle::getExposure() noexcept(false) {
+    return core_->getSLMExposure(label_.c_str());
+}
+
+unsigned SLMDeviceHandle::getWidth() noexcept(false) {
+    return core_->getSLMWidth(label_.c_str());
+}
+
+unsigned SLMDeviceHandle::getHeight() noexcept(false) {
+    return core_->getSLMHeight(label_.c_str());
+}
+
+unsigned SLMDeviceHandle::getNumberOfComponents() noexcept(false) {
+    return core_->getSLMNumberOfComponents(label_.c_str());
+}
+
+unsigned SLMDeviceHandle::getBytesPerPixel() noexcept(false) {
+    return core_->getSLMBytesPerPixel(label_.c_str());
+}
+
+long SLMDeviceHandle::getSequenceMaxLength() noexcept(false) {
+    return core_->getSLMSequenceMaxLength(label_.c_str());
+}
+
+void SLMDeviceHandle::startSequence() noexcept(false) {
+    core_->startSLMSequence(label_.c_str());
+}
+
+void SLMDeviceHandle::stopSequence() noexcept(false) { core_->stopSLMSequence(label_.c_str()); }
+
+void SLMDeviceHandle::loadSequence(std::vector<unsigned char *> imageSequence) noexcept(false) {
+    core_->loadSLMSequence(label_.c_str(), imageSequence);
+}
+
+// ------------------------------------------------------------------
+// GalvoDeviceHandle
+// ------------------------------------------------------------------
+
+void GalvoDeviceHandle::pointAndFire(double x, double y, double pulseTime_us) noexcept(false) {
+    core_->pointGalvoAndFire(label_.c_str(), x, y, pulseTime_us);
+}
+
+void GalvoDeviceHandle::setSpotInterval(double pulseTime_us) noexcept(false) {
+    core_->setGalvoSpotInterval(label_.c_str(), pulseTime_us);
+}
+
+void GalvoDeviceHandle::setPosition(double x, double y) noexcept(false) {
+    core_->setGalvoPosition(label_.c_str(), x, y);
+}
+
+void GalvoDeviceHandle::getPosition(double &x_stage, double &y_stage) noexcept(false) {
+    core_->getGalvoPosition(label_.c_str(), x_stage, y_stage);
+}
+
+void GalvoDeviceHandle::setIlluminationState(bool on) noexcept(false) {
+    core_->setGalvoIlluminationState(label_.c_str(), on);
+}
+
+double GalvoDeviceHandle::getXRange() noexcept(false) {
+    return core_->getGalvoXRange(label_.c_str());
+}
+
+double GalvoDeviceHandle::getXMinimum() noexcept(false) {
+    return core_->getGalvoXMinimum(label_.c_str());
+}
+
+double GalvoDeviceHandle::getYRange() noexcept(false) {
+    return core_->getGalvoYRange(label_.c_str());
+}
+
+double GalvoDeviceHandle::getYMinimum() noexcept(false) {
+    return core_->getGalvoYMinimum(label_.c_str());
+}
+
+void GalvoDeviceHandle::addPolygonVertex(int polygonIndex, double x, double y) noexcept(false) {
+    core_->addGalvoPolygonVertex(label_.c_str(), polygonIndex, x, y);
+}
+
+void GalvoDeviceHandle::deletePolygons() noexcept(false) {
+    core_->deleteGalvoPolygons(label_.c_str());
+}
+
+void GalvoDeviceHandle::loadPolygons() noexcept(false) {
+    core_->loadGalvoPolygons(label_.c_str());
+}
+
+void GalvoDeviceHandle::setPolygonRepetitions(int repetitions) noexcept(false) {
+    core_->setGalvoPolygonRepetitions(label_.c_str(), repetitions);
+}
+
+void GalvoDeviceHandle::runPolygons() noexcept(false) {
+    core_->runGalvoPolygons(label_.c_str());
+}
+
+void GalvoDeviceHandle::runSequence() noexcept(false) {
+    core_->runGalvoSequence(label_.c_str());
+}
+
+std::string GalvoDeviceHandle::getChannel() noexcept(false) {
+    return core_->getGalvoChannel(label_.c_str());
+}
+
+// ------------------------------------------------------------------
+// HubDeviceHandle
+// ------------------------------------------------------------------
+
+std::vector<std::string> HubDeviceHandle::getInstalledDevices() noexcept(false) {
+    return core_->getInstalledDevices(label_.c_str());
+}
+
+std::string
+HubDeviceHandle::getInstalledDeviceDescription(const char *peripheralLabel) noexcept(false) {
+    return core_->getInstalledDeviceDescription(label_.c_str(), peripheralLabel);
+}
+
+std::vector<std::string> HubDeviceHandle::getLoadedPeripheralDevices() noexcept(false) {
+    return core_->getLoadedPeripheralDevices(label_.c_str());
+}

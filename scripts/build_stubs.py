@@ -88,9 +88,7 @@ def load_module_from_filepath(name: str, filepath: str) -> ModuleType:
 def build_stub(module_path: Path, output_path: str):
     module_name = module_path.stem.split(".")[0]
     module = load_module_from_filepath(module_name, str(module_path))
-    s = StubGen(
-        module, include_docstrings=True, include_private=False, member_sort="as-defined"
-    )
+    s = StubGen(module, include_docstrings=True, include_private=False)
     s.put(module)
     dest = Path(output_path)
     stub_txt = s.get()

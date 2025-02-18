@@ -838,9 +838,23 @@ NB_MODULE(_pymmcore_nano, m) {
                    std::to_string(self.getPropertyNames().size()) + " properties>";
         });
 
-    ;
+    // StageDevice
+    nb::class_<StageDeviceHandle, DeviceHandle>(m, "StageDevice")
+        .def("setPosition", &StageDeviceHandle::setPosition, "pos"_a)
+        .def("getPosition", &StageDeviceHandle::getPosition)
+        .def("setRelativePosition", &StageDeviceHandle::setRelativePosition, "distance"_a)
+        .def("stop", &StageDeviceHandle::stop)
+        .def("home", &StageDeviceHandle::home)
+        .def("setOrigin", &StageDeviceHandle::setOrigin)
+        .def("setAdapterOrigin", &StageDeviceHandle::setAdapterOrigin, "newZUm"_a)
+        .def("isContinuousFocusDrive", &StageDeviceHandle::isContinuousFocusDrive)
+        .def("isSequenceable", &StageDeviceHandle::isSequenceable)
+        .def("startSequence", &StageDeviceHandle::startSequence)
+        .def("stopSequence", &StageDeviceHandle::stopSequence)
+        .def("getSequenceMaxLength", &StageDeviceHandle::getSequenceMaxLength)
+        .def("loadSequence", &StageDeviceHandle::loadSequence, "positions"_a);
 
-    // Bind the XYStageDevice class.
+    // XYStageDevice
     nb::class_<XYStageDeviceHandle, DeviceHandle>(m, "XYStageDevice")
         .def("setPosition", &XYStageDeviceHandle::setPosition, "x"_a, "y"_a)
         .def("getPosition", &XYStageDeviceHandle::getPosition)
@@ -858,9 +872,7 @@ NB_MODULE(_pymmcore_nano, m) {
         .def("startSequence", &XYStageDeviceHandle::startSequence)
         .def("stopSequence", &XYStageDeviceHandle::stopSequence)
         .def("getSequenceMaxLength", &XYStageDeviceHandle::getSequenceMaxLength)
-        .def("loadSequence", &XYStageDeviceHandle::loadSequence, "xSequence"_a, "ySequence"_a)
-
-        ;
+        .def("loadSequence", &XYStageDeviceHandle::loadSequence, "xSequence"_a, "ySequence"_a);
 
     // CameraDeviceHandle
     nb::class_<CameraDeviceHandle, DeviceHandle>(m, "CameraDevice")
@@ -868,8 +880,108 @@ NB_MODULE(_pymmcore_nano, m) {
         .def("setExposure", &CameraDeviceHandle::setExposure, "exposure"_a)
         .def_prop_rw("exposure", &CameraDeviceHandle::getExposure,
                      &CameraDeviceHandle::setExposure)
+        .def("isSequenceRunning", &CameraDeviceHandle::isSequenceRunning)
+        .def("isSequenceable", &CameraDeviceHandle::isSequenceable)
+        .def("startSequence", &CameraDeviceHandle::startSequence)
+        .def("stopSequence", &CameraDeviceHandle::stopSequence)
+        .def("getSequenceMaxLength", &CameraDeviceHandle::getSequenceMaxLength)
+        .def("loadSequence", &CameraDeviceHandle::loadSequence, "exposureSequence_ms"_a);
 
-        ;
+    // ShutterDeviceHandle
+    nb::class_<ShutterDeviceHandle, DeviceHandle>(m, "ShutterDevice")
+        .def("setOpen", &ShutterDeviceHandle::setOpen, "open"_a)
+        .def("isOpen", &ShutterDeviceHandle::isOpen);
+
+    // StateDeviceHandle
+    nb::class_<StateDeviceHandle, DeviceHandle>(m, "StateDevice")
+        .def("setState", &StateDeviceHandle::setState, "state"_a)
+        .def("getState", &StateDeviceHandle::getState)
+        .def("getNumberOfStates", &StateDeviceHandle::getNumberOfStates)
+        .def("setStateLabel", &StateDeviceHandle::setStateLabel, "stateLabel"_a)
+        .def("getStateLabel", &StateDeviceHandle::getStateLabel)
+        .def("defineStateLabel", &StateDeviceHandle::defineStateLabel, "state"_a,
+             "stateLabel"_a)
+        .def("getStateLabels", &StateDeviceHandle::getStateLabels)
+        .def("getStateFromLabel", &StateDeviceHandle::getStateFromLabel, "stateLabel"_a);
+
+    // SerialDeviceHandle
+    nb::class_<SerialDeviceHandle, DeviceHandle>(m, "SerialDevice")
+        .def("setProperties", &SerialDeviceHandle::setProperties, "answerTimeout"_a,
+             "baudRate"_a, "delayBetweenCharsMs"_a, "handshaking"_a, "parity"_a, "stopBits"_a)
+        .def("setCommand", &SerialDeviceHandle::setCommand, "command"_a, "term"_a)
+        .def("getAnswer", &SerialDeviceHandle::getAnswer, "term"_a)
+        .def("write", &SerialDeviceHandle::write, "data"_a)
+        .def("read", &SerialDeviceHandle::read);
+
+    // SLMDeviceHandle
+    nb::class_<SLMDeviceHandle, DeviceHandle>(m, "SLMDevice")
+        .def("setImage", nb::overload_cast<unsigned char *>(&SLMDeviceHandle::setImage),
+             "pixels"_a)
+        .def("setImage", nb::overload_cast<unsigned int *>(&SLMDeviceHandle::setImage),
+             "pixels"_a)
+        .def("setPixelsTo", nb::overload_cast<unsigned char>(&SLMDeviceHandle::setPixelsTo),
+             "intensity"_a)
+        .def("setPixelsTo",
+             nb::overload_cast<unsigned char, unsigned char, unsigned char>(
+                 &SLMDeviceHandle::setPixelsTo),
+             "red"_a, "green"_a, "blue"_a)
+        .def("displayImage", &SLMDeviceHandle::displayImage)
+        .def("setExposure", &SLMDeviceHandle::setExposure, "exposure_ms"_a)
+        .def("getExposure", &SLMDeviceHandle::getExposure)
+        .def("getWidth", &SLMDeviceHandle::getWidth)
+        .def("getHeight", &SLMDeviceHandle::getHeight)
+        .def("getNumberOfComponents", &SLMDeviceHandle::getNumberOfComponents)
+        .def("getBytesPerPixel", &SLMDeviceHandle::getBytesPerPixel)
+        .def("getSequenceMaxLength", &SLMDeviceHandle::getSequenceMaxLength)
+        .def("startSequence", &SLMDeviceHandle::startSequence)
+        .def("stopSequence", &SLMDeviceHandle::stopSequence)
+        .def(
+            "loadSequence",
+            [](SLMDeviceHandle &self,
+               std::vector<nb::ndarray<uint8_t>> &imageSequence) -> void {
+                long expectedWidth = self.getWidth();
+                long expectedHeight = self.getHeight();
+                long bytesPerPixel = self.getBytesPerPixel();
+                std::vector<unsigned char *> inputVector;
+                for (auto &image : imageSequence) {
+                    validate_slm_image(image, expectedWidth, expectedHeight, bytesPerPixel);
+                    inputVector.push_back(reinterpret_cast<unsigned char *>(image.data()));
+                }
+                self.loadSequence(inputVector);
+            },
+            "imageSequence"_a);
+
+    // GalvoDeviceHandle
+    nb::class_<GalvoDeviceHandle, DeviceHandle>(m, "GalvoDevice")
+        .def("pointAndFire", &GalvoDeviceHandle::pointAndFire, "x"_a, "y"_a, "pulseTime_us"_a)
+        .def("setSpotInterval", &GalvoDeviceHandle::setSpotInterval, "pulseTime_us"_a)
+        .def("setPosition", &GalvoDeviceHandle::setPosition, "x"_a, "y"_a)
+        .def("getPosition", &GalvoDeviceHandle::getPosition)
+        .def("setIlluminationState", &GalvoDeviceHandle::setIlluminationState, "on"_a)
+        .def("getXRange", &GalvoDeviceHandle::getXRange)
+        .def("getXMinimum", &GalvoDeviceHandle::getXMinimum)
+        .def("getYRange", &GalvoDeviceHandle::getYRange)
+        .def("getYMinimum", &GalvoDeviceHandle::getYMinimum)
+        .def("addPolygonVertex", &GalvoDeviceHandle::addPolygonVertex, "polygonIndex"_a, "x"_a,
+             "y"_a)
+        .def("deletePolygons", &GalvoDeviceHandle::deletePolygons)
+        .def("loadPolygons", &GalvoDeviceHandle::loadPolygons)
+        .def("setPolygonRepetitions", &GalvoDeviceHandle::setPolygonRepetitions,
+             "repetitions"_a)
+        .def("runPolygons", &GalvoDeviceHandle::runPolygons)
+        .def("runSequence", &GalvoDeviceHandle::runSequence)
+        .def("getChannel", &GalvoDeviceHandle::getChannel);
+
+    // HubDeviceHandle
+    nb::class_<HubDeviceHandle, DeviceHandle>(m, "HubDevice")
+        .def("getInstalledDevices", &HubDeviceHandle::getInstalledDevices)
+        .def("getInstalledDeviceDescription", &HubDeviceHandle::getInstalledDeviceDescription)
+        .def("getLoadedPeripheralDevices", &HubDeviceHandle::getLoadedPeripheralDevices);
+
+    nb::class_<ImageProcessorDeviceHandle, DeviceHandle>(m, "ImageProcessorDevice");
+    nb::class_<SignalIODeviceHandle, DeviceHandle>(m, "SignalIODeviceHandle");
+    nb::class_<MagnifierDeviceHandle, DeviceHandle>(m, "MagnifierDeviceHandle");
+    nb::class_<AutoFocusDeviceHandle, DeviceHandle>(m, "AutoFocusDeviceHandle");
 
     //////////////////// MMCore ////////////////////
 
@@ -1016,8 +1128,20 @@ NB_MODULE(_pymmcore_nano, m) {
 
                 // Return the proper subclass based on the device type.
                 switch (device_type) {
-                case MM::XYStageDevice: return new XYStageDeviceHandle(&core, label);
+                case MM::AutoFocusDevice: return new AutoFocusDeviceHandle(&core, label);
                 case MM::CameraDevice: return new CameraDeviceHandle(&core, label);
+                case MM::GalvoDevice: return new GalvoDeviceHandle(&core, label);
+                case MM::HubDevice: return new HubDeviceHandle(&core, label);
+                case MM::ImageProcessorDevice:
+                    return new ImageProcessorDeviceHandle(&core, label);
+                case MM::MagnifierDevice: return new MagnifierDeviceHandle(&core, label);
+                case MM::SerialDevice: return new SerialDeviceHandle(&core, label);
+                case MM::ShutterDevice: return new ShutterDeviceHandle(&core, label);
+                case MM::SignalIODevice: return new SignalIODeviceHandle(&core, label);
+                case MM::SLMDevice: return new SLMDeviceHandle(&core, label);
+                case MM::StageDevice: return new StageDeviceHandle(&core, label);
+                case MM::StateDevice: return new StateDeviceHandle(&core, label);
+                case MM::XYStageDevice: return new XYStageDeviceHandle(&core, label);
 
                 default:
                     throw std::runtime_error("Device type not supported: " +
