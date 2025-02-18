@@ -26,6 +26,7 @@ jobs:
           submodules: recursive
 
       - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.platform == 'windows-latest'
         with:
           toolset: "14.29"
 
@@ -49,6 +50,7 @@ jobs:
           submodules: recursive
 
       - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.platform == 'windows-latest'
         with:
           toolset: "14.29"
 
