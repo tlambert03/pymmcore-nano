@@ -31,6 +31,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
+      - run: uv sync --no-install-project
       - run: just build-devices
 
   test:
