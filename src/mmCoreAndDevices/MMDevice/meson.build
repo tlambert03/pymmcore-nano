@@ -1,15 +1,15 @@
 # This Meson script is experimental and potentially incomplete. It is not part
 # of the supported build system for Micro-Manager or mmCoreAndDevices.
 
-project(
-    'MMDevice',
-    'cpp',
-    meson_version: '>=1.1.0', # May relax
-    default_options: [
-        'cpp_std=c++14',
-        'warning_level=3',
-    ],
-)
+# project(
+#     'MMDevice',
+#     'cpp',
+#     meson_version: '>=1.1.0', # May relax
+#     default_options: [
+#         'cpp_std=c++14',
+#         'warning_level=3',
+#     ],
+# )
 
 build_mode_args = []
 if get_option('client_interface')
@@ -57,13 +57,12 @@ mmdevice_lib = static_library(
     ],
 )
 
-subdir('unittest')
-
-mmdevice = declare_dependency(
+mmdevice_dep = declare_dependency(
     compile_args: build_mode_args,
     include_directories: mmdevice_include_dir,
     link_with: mmdevice_lib,
 )
+meson.override_dependency('mmdevice_dep', mmdevice_dep)
 
 # For providing include dir to SWIG when using this project as a subproject
 swig_include_dirs = [meson.current_source_dir()]

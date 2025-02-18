@@ -10,3 +10,12 @@ option(
     value: true,
     description: 'Define MATCH_SWIG, to export all enum instances as top level names'
 )
+option('tests', type: 'feature', value: 'enabled',
+    description: 'Build unit tests',
+)
+option('client_interface', type: 'boolean', value: false,
+    description: 'Build for use by MMCore, as opposed to by a device adapter',
+)
+option('tests', type: 'feature', value: 'enabled', yield: true,
+    description: 'Build unit tests',
+)
