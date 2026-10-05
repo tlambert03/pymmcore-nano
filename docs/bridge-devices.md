@@ -97,7 +97,9 @@ These are documented as `typing.Protocol` classes in
 - `PyCamera` — camera methods (snap, exposure, ROI, binning, etc.)
 - `PyShutter` — `set_open()`, `get_open()`, `fire()`
 - `PyStage` — single-axis positioning
-- `PyXYStage` — dual-axis positioning (step-based)
+- `PyXYStage` — dual-axis positioning in microns
+- `PyXYStepperStage` — dual-axis positioning in steps only (`CXYStageBase`
+  converts microns, mirroring, and the adapter origin)
 - `PyState` — filter wheel / turret (`get_number_of_positions()`, plus a
   "State" property; see [State devices](#state-devices))
 - `PyAutoFocus` — continuous/incremental focus, offset, scores

@@ -377,8 +377,14 @@ nb::object createPropertyFactory(TDevice *dev, std::shared_ptr<std::atomic<bool>
             int ret = doCreate(dev, name.c_str(), defaultValue.c_str(),
                                static_cast<MM::PropertyType>(mmType), readOnly, action.get(),
                                preInit);
-            if (ret == DEVICE_OK)
-                action.release();
+            if (ret == DEVICE_DUPLICATE_PROPERTY)
+                throw std::runtime_error("Cannot create property '" + name +
+                                         "': the device already has a property with this "
+                                         "name (possibly created by the C++ base class)");
+            if (ret != DEVICE_OK)
+                throw std::runtime_error("Cannot create property '" + name +
+                                         "' (device error " + std::to_string(ret) + ")");
+            action.release();
 
             PropertyHandle handle(dev, name, alive, seqMaxPtr);
 
@@ -806,11 +812,41 @@ class PyBridgeXYStage : public CXYStageBase<PyBridgeXYStage>,
                         private PyBridgeDeviceBase<PyBridgeXYStage> {
     PYBRIDGE_COMMON_OVERRIDES(PyBridgeXYStage)
 
+    // Like C++ adapters, a Python XY stage either works in microns (it defines
+    // set_position_um), or is a stepper that only implements the steps methods.
+    // For a stepper, CXYStageBase converts um <-> steps, applying the
+    // TransposeMirrorX/Y properties and the adapter origin, exactly as for a C++
+    // adapter that doesn't override SetPositionUm.
+    bool usesSteps_ = false;
+    bool hasSetOrigin_ = false;
+
+    int beforePyInitialize() {
+        nb::gil_scoped_acquire gil;
+        usesSteps_ = !nb::hasattr(py_, "set_position_um");
+        hasSetOrigin_ = nb::hasattr(py_, "set_origin");
+        return DEVICE_OK;
+    }
+
+    // A stepper's moves are reported to CMMCore (as e.g. DemoCamera's XY stage
+    // does); a micron-based Python device notifies for itself.
+    int notifyPositionUm() {
+        double x, y;
+        int ret = CXYStageBase::GetPositionUm(x, y);
+        if (ret != DEVICE_OK)
+            return ret;
+        return OnXYStagePositionChanged(x, y);
+    }
+
     // -- MM::XYStage: position (um) --
     int SetPositionUm(double x, double y) override {
-        return py_call(py_, "set_position_um", x, y);
+        if (!usesSteps_)
+            return py_call(py_, "set_position_um", x, y);
+        int ret = CXYStageBase::SetPositionUm(x, y);
+        return ret == DEVICE_OK ? OnXYStagePositionChanged(x, y) : ret;
     }
     int GetPositionUm(double &x, double &y) override {
+        if (usesSteps_)
+            return CXYStageBase::GetPositionUm(x, y);
         return py_invoke([&]() -> int {
             auto pos = py_.attr("get_position_um")();
             x = nb::cast<double>(pos[nb::int_(0)]);
@@ -819,10 +855,19 @@ class PyBridgeXYStage : public CXYStageBase<PyBridgeXYStage>,
         });
     }
     int SetRelativePositionUm(double dx, double dy) override {
-        return py_call(py_, "set_relative_position_um", dx, dy);
+        if (!usesSteps_)
+            return py_call(py_, "set_relative_position_um", dx, dy);
+        int ret = CXYStageBase::SetRelativePositionUm(dx, dy);
+        return ret == DEVICE_OK ? notifyPositionUm() : ret;
     }
     int SetAdapterOriginUm(double x, double y) override {
+        if (usesSteps_)
+            return CXYStageBase::SetAdapterOriginUm(x, y);
         return py_call(py_, "set_adapter_origin_um", x, y);
+    }
+    int UsesOnXYStagePositionChanged(bool &result) const override {
+        result = usesSteps_;
+        return DEVICE_OK;
     }
 
     // -- MM::XYStage: position (steps) --
@@ -847,7 +892,13 @@ class PyBridgeXYStage : public CXYStageBase<PyBridgeXYStage>,
     int Move(double vx, double vy) override { return py_call(py_, "move", vx, vy); }
 
     // -- MM::XYStage: origin --
-    int SetOrigin() override { return py_call(py_, "set_origin"); }
+    // Without a device-specific set_origin, zero the adapter origin (software
+    // origin), as many C++ adapters do.
+    int SetOrigin() override {
+        if (!hasSetOrigin_)
+            return SetAdapterOriginUm(0.0, 0.0);
+        return py_call(py_, "set_origin");
+    }
     int SetXOrigin() override { return py_call(py_, "set_x_origin"); }
     int SetYOrigin() override { return py_call(py_, "set_y_origin"); }
 

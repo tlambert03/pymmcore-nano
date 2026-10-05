@@ -881,6 +881,126 @@ def test_load_py_xy_stage() -> None:
     assert not core.isXYStageSequenceable("XY")
 
 
+class MinimalXYStepper(MinimalDevice):
+    """XY stage that only works in steps (no *_um methods, no set_origin)."""
+
+    def __init__(self) -> None:
+        self.steps = (0, 0)
+
+    def set_position_steps(self, x: int, y: int) -> None:
+        self.steps = (x, y)
+
+    def get_position_steps(self) -> tuple[int, int]:
+        return self.steps
+
+    def set_relative_position_steps(self, dx: int, dy: int) -> None:
+        self.steps = (self.steps[0] + dx, self.steps[1] + dy)
+
+    def get_step_size_x_um(self) -> float:
+        return 0.1
+
+    def get_step_size_y_um(self) -> float:
+        return 0.1
+
+    def home(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+    def move(self, vx: float, vy: float) -> None:
+        pass
+
+    def set_x_origin(self) -> None:
+        pass
+
+    def set_y_origin(self) -> None:
+        pass
+
+    def get_limits_um(self) -> tuple[float, float, float, float]:
+        return (0.0, 0.0, 0.0, 0.0)
+
+    def get_step_limits(self) -> tuple[int, int, int, int]:
+        return (0, 0, 0, 0)
+
+    def is_xy_stage_sequenceable(self) -> bool:
+        return False
+
+
+def _load_stepper(core: CMMCore) -> MinimalXYStepper:
+    stage = MinimalXYStepper()
+    core.loadPyDevice("XY", stage, DeviceType.XYStageDevice)
+    core.initializeDevice("XY")
+    core.setXYStageDevice("XY")
+    return stage
+
+
+def test_py_xy_stepper_uses_cxystagebase_conversion() -> None:
+    """Without *_um methods, CXYStageBase converts um <-> steps (nearest step)."""
+    core = CMMCore()
+    stage = _load_stepper(core)
+
+    core.setXYPosition(100.5, -200.5)
+    assert stage.steps == (1005, -2005)
+    assert core.getXYPosition() == pytest.approx((100.5, -200.5))
+
+    core.setXYPosition(0.19, -0.19)
+    assert stage.steps == (2, -2)
+
+    core.setRelativeXYPosition(1.0, 1.0)
+    assert stage.steps == (12, 8)
+
+
+def test_py_xy_stepper_mirroring() -> None:
+    """CXYStageBase's TransposeMirrorX/Y apply, however they are set."""
+    core = CMMCore()
+    stage = _load_stepper(core)
+    assert core.hasProperty("XY", "TransposeMirrorX")
+
+    core.defineConfig("Orientation", "Mirrored", "XY", "TransposeMirrorX", "1")
+    core.setConfig("Orientation", "Mirrored")
+    core.setXYPosition(10.0, 20.0)
+    assert stage.steps == (-100, 200)
+    assert core.getXYPosition() == pytest.approx((10.0, 20.0))
+
+
+def test_py_xy_stepper_origin() -> None:
+    """setOriginXY zeroes the adapter origin; the hardware position is unchanged."""
+    core = CMMCore()
+    stage = _load_stepper(core)
+
+    core.setXYPosition(10.0, 20.0)
+    core.setOriginXY()
+    assert stage.steps == (100, 200)
+    assert core.getXYPosition() == pytest.approx((0.0, 0.0))
+
+    core.setAdapterOriginXY(5.0, 6.0)
+    assert core.getXYPosition() == pytest.approx((5.0, 6.0))
+    assert stage.steps == (100, 200)
+
+
+def test_py_xy_stepper_notifies_moves() -> None:
+    received: list[tuple[str, float, float]] = []
+
+    class Listener(pmn.MMEventCallback):
+        def onXYStagePositionChanged(self, dev: str, x: float, y: float) -> None:
+            received.append((dev, x, y))
+
+    core = CMMCore()
+    _load_stepper(core)
+    cb = Listener()
+    core.registerCallback(cb)
+
+    core.setXYPosition(1.0, 2.0)
+    core.setRelativeXYPosition(0.5, 0.5)
+
+    deadline = time.time() + 2.0
+    while len(received) < 2 and time.time() < deadline:
+        time.sleep(0.01)
+    assert received[0] == ("XY", pytest.approx(1.0), pytest.approx(2.0))
+    assert received[1] == ("XY", pytest.approx(1.5), pytest.approx(2.5))
+
+
 def test_load_py_state() -> None:
     core = CMMCore()
     labels = ["DAPI", "FITC", "TRITC", "Cy5"]
@@ -1488,6 +1608,36 @@ class SequenceableSLM(MinimalSLM):
 
     def stop_slm_sequence(self) -> None:
         self._seq_stopped = True
+
+
+def test_create_property_duplicate_name_raises() -> None:
+    class DupProps(MinimalGeneric):
+        def initialize_bridge(
+            self, create_property: CreatePropertyFn, notify: DeviceCallbacks
+        ) -> None:
+            create_property("Mode", "a", 1, False)  # MM::String
+            create_property("Mode", "b", 1, False)
+
+    core = CMMCore()
+    core.loadPyDevice("Dev", DupProps(), DeviceType.GenericDevice)
+    with pytest.raises(RuntimeError, match="Mode"):
+        core.initializeDevice("Dev")
+
+
+def test_create_property_colliding_with_base_class_property_raises() -> None:
+    """CXYStageBase already creates TransposeMirrorX in C++."""
+
+    class XYWithMirror(MinimalXYStage):
+        def initialize_bridge(
+            self, create_property: CreatePropertyFn, notify: DeviceCallbacks
+        ) -> None:
+            super().initialize_bridge(create_property, notify)
+            create_property("TransposeMirrorX", "0", 3, False)  # MM::Integer
+
+    core = CMMCore()
+    core.loadPyDevice("XY", XYWithMirror(), DeviceType.XYStageDevice)
+    with pytest.raises(RuntimeError, match="TransposeMirrorX"):
+        core.initializeDevice("XY")
 
 
 def test_exposure_sequencing() -> None:
