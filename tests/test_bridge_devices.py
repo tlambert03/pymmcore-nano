@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pymmcore_nano as pmn
+import pytest
 from pymmcore_nano import CMMCore, DeviceAdapter, DeviceType
 
 if TYPE_CHECKING:
@@ -695,11 +696,23 @@ class MinimalState(MinimalDevice):
     def __init__(self, n_positions: int = 4, labels: list[str] | None = None) -> None:
         self._n = n_positions
         self._labels = labels
+        self._pos = 0
+        self._notify: DeviceCallbacks | None = None
 
     def initialize_bridge(
         self, create_property: CreatePropertyFn, notify: DeviceCallbacks
     ) -> None:
         super().initialize_bridge(create_property, notify)
+        self._notify = notify
+        create_property(
+            "State",
+            "0",
+            3,  # MM::Integer
+            False,
+            getter=lambda: self._pos,
+            setter=lambda v: setattr(self, "_pos", int(v)),
+            allowed_values=list(range(self._n)),
+        )
         if self._labels is not None:
             for i, label in enumerate(self._labels):
                 notify.set_position_label(i, label)
@@ -880,6 +893,119 @@ def test_load_py_state() -> None:
 
     # Labels set during initialize should be accessible
     assert core.getStateLabels("Wheel") == ["DAPI", "FITC", "TRITC", "Cy5"]
+
+
+def _load_wheel(core: CMMCore) -> MinimalState:
+    state = MinimalState(n_positions=4, labels=["DAPI", "FITC", "TRITC", "Cy5"])
+    core.loadPyDevice("Wheel", state, DeviceType.StateDevice)
+    core.initializeDevice("Wheel")
+    return state
+
+
+def test_py_state_label_property_follows_state() -> None:
+    """The bridge provides Label from the same label map as getStateLabel."""
+    core = CMMCore()
+    state = _load_wheel(core)
+
+    assert core.hasProperty("Wheel", "Label")
+    assert sorted(core.getAllowedPropertyValues("Wheel", "Label")) == sorted(
+        ["DAPI", "FITC", "TRITC", "Cy5"]
+    )
+
+    core.setState("Wheel", 2)
+    assert state._pos == 2
+    assert core.getProperty("Wheel", "Label") == "TRITC"
+    assert core.getPropertyFromCache("Wheel", "Label") == "TRITC"
+
+    core.setStateLabel("Wheel", "FITC")
+    assert state._pos == 1
+    assert core.getProperty("Wheel", "State") == "1"
+    assert core.getPropertyFromCache("Wheel", "State") == "1"
+
+    core.setProperty("Wheel", "Label", "Cy5")
+    assert state._pos == 3
+    assert core.getState("Wheel") == 3
+
+
+def test_py_state_define_state_label() -> None:
+    """defineStateLabel is visible through every label/Label accessor."""
+    core = CMMCore()
+    _load_wheel(core)
+
+    core.defineStateLabel("Wheel", 1, "GFP")
+    assert core.getStateLabels("Wheel") == ["DAPI", "GFP", "TRITC", "Cy5"]
+    assert "GFP" in core.getAllowedPropertyValues("Wheel", "Label")
+    assert "FITC" not in core.getAllowedPropertyValues("Wheel", "Label")
+
+    core.setState("Wheel", 1)
+    assert core.getStateLabel("Wheel") == "GFP"
+    assert core.getProperty("Wheel", "Label") == "GFP"
+    assert core.getPropertyFromCache("Wheel", "Label") == "GFP"
+
+    core.setState("Wheel", 0)
+    core.setProperty("Wheel", "Label", "GFP")
+    assert core.getState("Wheel") == 1
+
+
+def test_py_state_cannot_create_label_property() -> None:
+    class StateWithLabel(MinimalState):
+        def initialize_bridge(
+            self, create_property: CreatePropertyFn, notify: DeviceCallbacks
+        ) -> None:
+            super().initialize_bridge(create_property, notify)
+            create_property("Label", "", 1, False)  # MM::String
+
+    core = CMMCore()
+    core.loadPyDevice("Wheel", StateWithLabel(), DeviceType.StateDevice)
+    with pytest.raises(RuntimeError, match="may not create a 'Label' property"):
+        core.initializeDevice("Wheel")
+
+
+def test_py_state_requires_state_property() -> None:
+    class StateWithoutState(MinimalDevice):
+        def get_number_of_positions(self) -> int:
+            return 2
+
+    core = CMMCore()
+    core.loadPyDevice("Wheel", StateWithoutState(), DeviceType.StateDevice)
+    with pytest.raises(RuntimeError, match="must create a 'State' property"):
+        core.initializeDevice("Wheel")
+
+
+def test_py_state_on_state_changed() -> None:
+    """A device-initiated move notifies CMMCore of both State and Label."""
+    received: list[tuple[str, str, str]] = []
+
+    class Listener(pmn.MMEventCallback):
+        def onPropertyChanged(self, dev: str, name: str, value: str) -> None:
+            received.append((dev, name, value))
+
+    core = CMMCore()
+    state = _load_wheel(core)
+    cb = Listener()
+    core.registerCallback(cb)
+
+    # e.g. the user turned the wheel by hand
+    state._pos = 2
+    assert state._notify is not None
+    state._notify.on_state_changed(2)
+
+    deadline = time.time() + 2.0
+    while len(received) < 2 and time.time() < deadline:
+        time.sleep(0.01)
+    assert ("Wheel", "State", "2") in received
+    assert ("Wheel", "Label", "TRITC") in received
+    assert core.getPropertyFromCache("Wheel", "Label") == "TRITC"
+
+
+def test_on_state_changed_requires_state_device() -> None:
+    core = CMMCore()
+    cam = MinimalCamera()
+    core.loadPyDevice("Cam", cam, DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    assert cam._notify is not None
+    with pytest.raises(RuntimeError, match="only available on State devices"):
+        cam._notify.on_state_changed(0)
 
 
 def test_load_py_autofocus() -> None:

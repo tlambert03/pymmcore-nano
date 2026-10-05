@@ -248,7 +248,18 @@ class PyGalvo(PyDevice, Protocol):
 
 @runtime_checkable
 class PyState(PyDevice, Protocol):
-    """Protocol for Python state devices (filter wheel, turret, etc.)."""
+    """Protocol for Python state devices (filter wheel, turret, etc.).
+
+    As with C++ state device adapters, position labels are owned by the C++
+    `CStateDeviceBase`:
+
+    - `initialize_bridge()` must create an integer "State" property (the device's
+      position), and may seed default labels with `notify.set_position_label()`.
+    - The bridge creates the "Label" property itself; creating one from Python
+      raises. User labels are then defined through `CMMCore.defineStateLabel()`.
+    - Call `notify.on_state_changed(pos)` when the device moves on its own, to
+      notify CMMCore of both State and Label.
+    """
 
     def get_number_of_positions(self) -> int: ...
 

@@ -98,7 +98,8 @@ These are documented as `typing.Protocol` classes in
 - `PyShutter` — `set_open()`, `get_open()`, `fire()`
 - `PyStage` — single-axis positioning
 - `PyXYStage` — dual-axis positioning (step-based)
-- `PyState` — filter wheel / turret (`get_number_of_positions()`)
+- `PyState` — filter wheel / turret (`get_number_of_positions()`, plus a
+  "State" property; see [State devices](#state-devices))
 - `PyAutoFocus` — continuous/incremental focus, offset, scores
 - `PyGeneric` — properties only (no device-specific methods)
 - `PyHub` — peripheral discovery (`detect_installed_devices()`)
@@ -182,6 +183,24 @@ core.setProperty("dev", "Gain", "42.5")
 
 CDeviceBase handles validation (limits, allowed values, read-only checks)
 before the lambda is ever called.
+
+### State devices
+
+As in C++ state device adapters, the position labels live in
+`CStateDeviceBase` — there is one label map, and the "Label" property is
+derived from it:
+
+- The Python device creates an integer "State" property (like an adapter's
+  `OnState` handler) and may seed default labels with
+  `notify.set_position_label(pos, label)` during `initialize_bridge()` (like
+  `SetPositionLabel()` in an adapter's `Initialize()`).
+- The bridge creates "Label" with `CStateBase::OnLabel` before calling
+  `initialize_bridge()`, so seeded labels become its allowed values. A Python
+  device may not create its own "Label" property.
+- `CMMCore.defineStateLabel()`, `setStateLabel()`, `getStateLabel()` and the
+  "Label" property all read and write that one map.
+- `notify.on_state_changed(pos)` maps to `CStateDeviceBase::OnStateChanged()`,
+  for when the device moves on its own (it notifies both State and Label).
 
 ## Key Files
 

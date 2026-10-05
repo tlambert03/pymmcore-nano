@@ -347,7 +347,8 @@ NB_MODULE(_pymmcore_nano, m) {
         .def("on_shutter_open_changed", &DeviceCallbacks::onShutterOpenChanged, "open"_a)
         .def("log_message", &DeviceCallbacks::logMessage, "msg"_a, "debug_only"_a = false)
         .def("acq_finished", &DeviceCallbacks::acqFinished, "status_code"_a = 0)
-        .def("set_position_label", &DeviceCallbacks::setPositionLabel, "pos"_a, "label"_a);
+        .def("set_position_label", &DeviceCallbacks::setPositionLabel, "pos"_a, "label"_a)
+        .def("on_state_changed", &DeviceCallbacks::onStateChanged, "pos"_a);
 
     /////////////////// Module Attributes ///////////////////
 

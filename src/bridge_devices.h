@@ -153,9 +153,17 @@ class DeviceCallbacks {
     MM::Core *cb_ = nullptr;
     std::shared_ptr<std::atomic<bool>> alive_;
 
-    // Type-erased SetPositionLabel — only populated for state devices.
+    // Type-erased CStateDeviceBase methods — only populated for state devices.
     using SetPosLabelFn = int (*)(MM::Device *, long, const char *);
+    using OnStateChangedFn = int (*)(MM::Device *, long);
     SetPosLabelFn setPositionLabel_ = nullptr;
+    OnStateChangedFn onStateChanged_ = nullptr;
+
+    void checkStateDevice(const char *method) const {
+        if (!setPositionLabel_)
+            throw std::runtime_error(std::string(method) +
+                                     " is only available on State devices");
+    }
 
     void checkAlive() const {
         if (!alive_ || !*alive_)
@@ -169,7 +177,10 @@ class DeviceCallbacks {
         : dev_(dev), cb_(cb), alive_(std::move(alive)) {}
 
     // Called by initializeWithPropertyFactory for state devices.
-    void enableSetPositionLabel(SetPosLabelFn fn) { setPositionLabel_ = fn; }
+    void enableStateDevice(SetPosLabelFn setLabel, OnStateChangedFn onStateChanged) {
+        setPositionLabel_ = setLabel;
+        onStateChanged_ = onStateChanged;
+    }
 
     void onPropertyChanged(const std::string &name, const std::string &value) {
         checkAlive();
@@ -221,9 +232,18 @@ class DeviceCallbacks {
 
     void setPositionLabel(long pos, const std::string &label) {
         checkAlive();
-        if (!setPositionLabel_)
-            throw std::runtime_error("setPositionLabel is only available on State devices");
+        checkStateDevice("set_position_label");
         setPositionLabel_(dev_, pos, label.c_str());
+    }
+
+    // Notify CMMCore that the device moved on its own (e.g. a manually
+    // turned turret). Sends both State and Label, like the C++
+    // CStateDeviceBase::OnStateChanged().
+    void onStateChanged(long pos) {
+        checkAlive();
+        checkStateDevice("on_state_changed");
+        nb::gil_scoped_release release;
+        onStateChanged_(dev_, pos);
     }
 };
 
@@ -343,6 +363,12 @@ nb::object createPropertyFactory(TDevice *dev, std::shared_ptr<std::atomic<bool>
             if (!*canCreate)
                 throw std::runtime_error("create_property() can only be called during "
                                          "initialize()");
+            if constexpr (std::is_base_of_v<CStateDeviceBase<TDevice>, TDevice>) {
+                if (name == MM::g_Keyword_Label)
+                    throw std::runtime_error(
+                        "State devices may not create a 'Label' property: it is provided by "
+                        "the bridge. Use notify.set_position_label() to define labels.");
+            }
 
             auto [action, seqMaxPtr] =
                 makePropertyAction(getter, setter, sequenceMaxLength, sequenceLoader,
@@ -396,11 +422,15 @@ int initializeWithPropertyFactory(TDevice *dev, nb::object &py,
     // Heap-allocated, Python takes ownership.
     auto *notify = new DeviceCallbacks(dev, coreCallback, alive);
 
-    // Enable SetPositionLabel for state devices.
+    // Enable the CStateDeviceBase callbacks for state devices.
     if constexpr (std::is_base_of_v<CStateDeviceBase<TDevice>, TDevice>) {
-        notify->enableSetPositionLabel([](MM::Device *d, long pos, const char *label) -> int {
-            return static_cast<TDevice *>(d)->SetPositionLabel(pos, label);
-        });
+        notify->enableStateDevice(
+            [](MM::Device *d, long pos, const char *label) -> int {
+                return static_cast<TDevice *>(d)->SetPositionLabel(pos, label);
+            },
+            [](MM::Device *d, long pos) -> int {
+                return static_cast<TDevice *>(d)->OnStateChanged(pos);
+            });
     }
 
     nb::object py_notify = nb::cast(notify, nb::rv_policy::take_ownership);
@@ -444,6 +474,11 @@ template <typename TDevice> class PyBridgeDeviceBase {
         return initializeWithPropertyFactory(dev, py_, alive_, coreCallback);
     }
 
+    // Per-device-type hooks around the Python initialize_bridge() call.
+    // Bridge classes hide these to add C++-side setup (see PyBridgeState).
+    int beforePyInitialize() { return DEVICE_OK; }
+    int afterPyInitialize() { return DEVICE_OK; }
+
     int shutdownCommon() {
         *alive_ = false;
         return py_call(py_, "shutdown");
@@ -466,7 +501,13 @@ template <typename TDevice> class PyBridgeDeviceBase {
         : PyBridgeDeviceBase<ClassName>(std::move(py_dev), std::move(name),                    \
                                         std::move(description)) {}                             \
     int Initialize() override {                                                                \
-        return this->initializeCommon(this, this->GetCoreCallback());                          \
+        int ret = this->beforePyInitialize();                                                  \
+        if (ret != DEVICE_OK)                                                                  \
+            return ret;                                                                        \
+        ret = this->initializeCommon(this, this->GetCoreCallback());                           \
+        if (ret != DEVICE_OK)                                                                  \
+            return ret;                                                                        \
+        return this->afterPyInitialize();                                                      \
     }                                                                                          \
     int Shutdown() override { return this->shutdownCommon(); }                                 \
     bool Busy() override { return this->busyCommon(); }                                        \
@@ -873,6 +914,24 @@ class PyBridgeXYStage : public CXYStageBase<PyBridgeXYStage>,
 class PyBridgeState : public CStateDeviceBase<PyBridgeState>,
                       private PyBridgeDeviceBase<PyBridgeState> {
     PYBRIDGE_COMMON_OVERRIDES(PyBridgeState)
+
+  public:
+    // As in C++ state device adapters, CStateDeviceBase owns the position
+    // labels and the "Label" property (via CStateBase::OnLabel); the Python
+    // device provides the "State" property and seeds default labels with
+    // notify.set_position_label(). Label is created before the Python
+    // initialize so that seeded labels also become its allowed values.
+    int beforePyInitialize() {
+        return CreateStringProperty(MM::g_Keyword_Label, "", false,
+                                    new CPropertyAction(this, &CStateBase::OnLabel));
+    }
+
+    int afterPyInitialize() {
+        if (!HasProperty(MM::g_Keyword_State))
+            throw std::runtime_error("Python State devices must create a 'State' property "
+                                     "in initialize_bridge()");
+        return DEVICE_OK;
+    }
 
     // -- MM::State --
     // CStateDeviceBase provides defaults for SetPosition, GetPosition,
