@@ -46,10 +46,12 @@ The bridge uses MMCore's existing `MockDeviceAdapter` infrastructure
 from pymmcore_nano import CMMCore, DeviceAdapter, DeviceType
 
 adapter = DeviceAdapter()
-adapter.add_device_class("MyCam", MyCameraClass, DeviceType.CameraDevice,
-                         "My custom camera")
-adapter.add_device_class("MyShutter", MyShutterClass, DeviceType.ShutterDevice,
-                         "My custom shutter")
+adapter.add_device_class(
+    "MyCam", MyCameraClass, DeviceType.CameraDevice, "My custom camera"
+)
+adapter.add_device_class(
+    "MyShutter", MyShutterClass, DeviceType.ShutterDevice, "My custom shutter"
+)
 
 core = CMMCore()
 core.loadPyDeviceAdapter("MyHardware", adapter)
@@ -119,19 +121,25 @@ During `initialize(bridge)`, the Python device registers properties:
 ```python
 def initialize(self, bridge):
     bridge.create_property(
-        "Gain", "1.0", PropertyType.Float, read_only=False,
+        "Gain",
+        "1.0",
+        PropertyType.Float,
+        read_only=False,
         getter=lambda: self._gain,
-        setter=lambda v: setattr(self, '_gain', float(v)),
-        limits=(0.0, 100.0)
+        setter=lambda v: setattr(self, "_gain", float(v)),
+        limits=(0.0, 100.0),
     )
     # can also set limits separately:
     # bridge.set_property_limits("Gain", 0.0, 100.0)
 
     bridge.create_property(
-        "Mode", "Normal", PropertyType.String, read_only=False,
+        "Mode",
+        "Normal",
+        PropertyType.String,
+        read_only=False,
         getter=lambda: self._mode,
-        setter=lambda v: setattr(self, '_mode', v),
-        allowed_values=["Normal", "Fast", "Slow"]
+        setter=lambda v: setattr(self, "_mode", v),
+        allowed_values=["Normal", "Fast", "Slow"],
     )
     # can also set allowed values separately:
     # bridge.set_allowed_values("Mode", ["Normal", "Fast", "Slow"])
