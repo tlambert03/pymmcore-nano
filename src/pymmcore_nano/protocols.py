@@ -327,8 +327,13 @@ class PyGeneric(PyDevice, Protocol):
 class PyHub(PyDevice, Protocol):
     """Protocol for Python hub devices."""
 
-    def detect_installed_devices(self) -> Sequence[tuple[str, object, int]]:
-        """Return peripherals as (name, py_device, device_type) tuples."""
+    def detect_installed_devices(self) -> Sequence[tuple[str, str]]:
+        """Return the peripherals present, as (name, description) tuples.
+
+        Discovery only lists peripherals; as with C++ hubs, loading one creates a
+        fresh device. Each name must be registered with
+        `DeviceAdapter.add_device_class()` on the hub's adapter to be loadable.
+        """
         ...
 
 

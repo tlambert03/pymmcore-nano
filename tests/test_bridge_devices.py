@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
+import functools
+import gc
+import os
+import subprocess
+import sys
 import threading
 import time
+import weakref
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -13,6 +21,7 @@ from pymmcore_nano import CMMCore, DeviceAdapter, DeviceType
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Any
 
     from pymmcore_nano import DeviceCallbacks
     from pymmcore_nano.protocols import CreatePropertyFn
@@ -761,10 +770,10 @@ class MinimalGeneric(MinimalDevice):
 class MinimalHub(MinimalDevice):
     """Hub that discovers a camera and shutter as peripherals."""
 
-    def detect_installed_devices(self):
+    def detect_installed_devices(self) -> list[tuple[str, str]]:
         return [
-            ("HubCam", MinimalCamera(), DeviceType.CameraDevice),
-            ("HubShutter", MinimalShutter(), DeviceType.ShutterDevice),
+            ("HubCam", "Minimal Python camera"),
+            ("HubShutter", "Minimal Python shutter"),
         ]
 
 
@@ -1281,7 +1290,7 @@ def test_load_py_hub() -> None:
     assert "HubCam" in peripherals
     assert "HubShutter" in peripherals
 
-    # Peripheral descriptions should come from the Python class docstring
+    # Peripheral descriptions come from detect_installed_devices
     cam_desc = core.getInstalledDeviceDescription("Hub", "HubCam")
     shutter_desc = core.getInstalledDeviceDescription("Hub", "HubShutter")
     assert "Minimal Python camera" in cam_desc
@@ -1331,6 +1340,9 @@ def test_slm_rgb_image() -> None:
     class RGBSlm(MinimalSLM):
         def get_number_of_components(self) -> int:
             return 3
+
+        def get_bytes_per_pixel(self) -> int:
+            return 3  # total across components
 
     core = CMMCore()
     slm = RGBSlm(width=8, height=4)
@@ -1725,3 +1737,323 @@ def test_slm_sequencing() -> None:
 
     core.stopSLMSequence("SLM")
     assert slm._seq_stopped
+
+
+def in_subprocess(
+    fn: Callable[..., None] | None = None, *, env: dict[str, str] | None = None
+) -> Any:
+    """Run the test in a fresh interpreter so aborts/segfaults fail it, not pytest."""
+
+    def decorator(fn: Callable[..., None]) -> Callable[..., None]:
+        @functools.wraps(fn)
+        def wrapper(**kwargs: Any) -> None:
+            call = f"m.{fn.__name__}.__wrapped__(**{kwargs!r})"
+            code = f"import {fn.__module__} as m; {call}"
+            proc = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=Path(__file__).parent,  # so `import test_bridge_devices` resolves
+                env={**os.environ, **(env or {})},
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            assert proc.returncode == 0, (
+                f"exit {proc.returncode}\n{proc.stderr[-2000:]}"
+            )
+
+        return wrapper
+
+    return decorator(fn) if fn is not None else decorator
+
+
+LAYOUTS = {
+    "transposed": lambda h, w: np.arange(h * w, dtype=np.uint8).reshape(w, h).T,
+    "strided": lambda h, w: np.arange(h * w * 2, dtype=np.uint8).reshape(h, w * 2)[
+        :, ::2
+    ],
+    "fortran": lambda h, w: np.asfortranarray(
+        np.arange(h * w, dtype=np.uint8).reshape(h, w)
+    ),
+}
+
+
+# Regression test for a use-after-free. When get_image_buffer() returned a
+# non-contiguous array, the bridge handed CMMCore a pointer into a temporary
+# contiguous copy that had already been freed. What getImage() then reads
+# depends on whether the allocator has reused that memory, so the test runs
+# with freed memory overwritten (macOS: MallocScribble, glibc: MALLOC_PERTURB_)
+# and a dangling read returns wrong pixels on every run. Windows has no such
+# switch, so detection there is best-effort. The image must stay well above
+# 1 KiB: NumPy caches smaller freed blocks itself, out of the allocator's reach.
+SCRIBBLE_FREED_MEMORY = {"MallocScribble": "1", "MALLOC_PERTURB_": "165"}
+
+
+@pytest.mark.parametrize("layout", LAYOUTS)
+@in_subprocess(env=SCRIBBLE_FREED_MEMORY)
+def test_get_image_returns_exactly_the_camera_array(layout: str) -> None:
+    """Any array layout the camera returns must come back unchanged, not scrambled
+    or read from freed memory."""
+
+    class Cam(MinimalCamera):
+        def snap_image(self) -> None:
+            self._buf = LAYOUTS[layout](self._height, self._width)
+
+        def get_image_buffer_size(self) -> int:
+            # CMMCore calls this after GetImageBuffer(); reusing a block of the
+            # same size makes a dangling image pointer observable.
+            junk = np.full(self._width * self._height, 0xEE, dtype=np.uint8)
+            del junk
+            return self._width * self._height
+
+    core = CMMCore()
+    cam = Cam(width=300, height=200)  # 60 kB: keep well above 1 KiB (see above)
+    core.loadPyDevice("Cam", cam, DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    core.setCameraDevice("Cam")
+    for _ in range(5):
+        core.snapImage()
+        np.testing.assert_array_equal(core.getImage(), cam._buf)
+
+
+@pytest.mark.parametrize("shape", [(2, 2), (6, 9), (5, 8)])
+def test_image_of_wrong_size_raises(shape: tuple[int, int]) -> None:
+    """CMMCore reads exactly w*h*bpp bytes; any other size reads garbage."""
+
+    class Cam(MinimalCamera):
+        def snap_image(self) -> None:
+            self._buf = np.zeros(shape, dtype=np.uint8)
+
+    core = CMMCore()
+    # note: these are NOT the same shape as the shape param.
+    core.loadPyDevice("Cam", Cam(width=8, height=6), DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    core.setCameraDevice("Cam")
+    core.snapImage()
+    with pytest.raises(RuntimeError):
+        core.getImage()
+
+
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_slm_receives_exactly_the_given_image(layout: str) -> None:
+    """Non-contiguous input must be copied or rejected, never reinterpreted."""
+    core = CMMCore()
+    slm = MinimalSLM(width=4, height=3)
+    core.loadPyDevice("SLM", slm, DeviceType.SLMDevice)
+    core.initializeDevice("SLM")
+    img = LAYOUTS[layout](3, 4)
+    try:
+        core.setSLMImage("SLM", img)
+    except (TypeError, ValueError):
+        return  # rejecting it is acceptable
+    np.testing.assert_array_equal(slm._image, img)
+
+
+def test_slm_bytes_per_pixel_is_the_total() -> None:
+    """SLM bpp is total bytes per pixel (GenericSLM: bpp=4, 3 components), not per
+    component."""
+
+    class RGBSLM(MinimalSLM):
+        def get_number_of_components(self) -> int:
+            return 3
+
+        def get_bytes_per_pixel(self) -> int:
+            return 4
+
+    core = CMMCore()
+    slm = RGBSLM(width=8, height=4)
+    core.loadPyDevice("SLM", slm, DeviceType.SLMDevice)
+    core.initializeDevice("SLM")
+    core.setSLMImage("SLM", np.zeros((4, 8, 4), dtype=np.uint8))
+    assert slm._image is not None
+
+
+def test_python_error_message_reaches_the_caller() -> None:
+    """The device's own error message is what the user needs to diagnose a failure."""
+
+    class Cam(MinimalCamera):
+        def snap_image(self) -> None:
+            raise RuntimeError("sensor overheated")
+
+    core = CMMCore()
+    core.loadPyDevice("Cam", Cam(), DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    core.setCameraDevice("Cam")
+    with pytest.raises(RuntimeError, match="sensor overheated"):
+        core.snapImage()
+
+
+def test_failing_property_getter_does_not_break_system_state() -> None:
+    """CMMCore::getSystemState tolerates per-property errors; same here."""
+
+    class Dev(MinimalDevice):
+        def initialize_bridge(
+            self, create_property: CreatePropertyFn, notify: DeviceCallbacks
+        ) -> None:
+            create_property("Bad", "0", 1, False, getter=self._boom)
+            create_property("Good", "ok", 1, False, getter=lambda: "ok")
+
+        def _boom(self) -> str:
+            raise RuntimeError("cannot read")
+
+    core = CMMCore()
+    core.loadPyDevice("D", Dev(), DeviceType.GenericDevice)
+    core.initializeDevice("D")
+    state = core.getSystemState()  # C++ devices: per-property errors are tolerated
+    assert state.isPropertyIncluded("D", "Good")
+
+
+def test_device_constructor_error_is_reported() -> None:
+    """The Python exception is the only clue why a device couldn't be created."""
+
+    class Broken(MinimalDevice):
+        def __init__(self) -> None:
+            raise ValueError("serial port COM7 not found")
+
+    ad = DeviceAdapter()
+    ad.add_device_class("Broken", Broken, DeviceType.GenericDevice, "")
+    core = CMMCore()
+    core.loadPyDeviceAdapter("Ad", ad)
+    with pytest.raises(RuntimeError, match="COM7"):
+        core.loadDevice("D", "Ad", "Broken")
+
+
+@pytest.mark.parametrize("how", ["unloadDevice", "unloadAllDevices", "reset"])
+def test_unloading_releases_the_python_device(how: str) -> None:
+    """Once unloaded, the core must not keep the device (and its hardware) alive."""
+    core = CMMCore()
+    dev = MinimalGeneric()
+    ref = weakref.ref(dev)
+    core.loadPyDevice("D", dev, DeviceType.GenericDevice)
+    core.initializeDevice("D")
+    del dev
+    if how == "unloadDevice":
+        core.unloadDevice("D")
+    else:
+        getattr(core, how)()
+    gc.collect()
+    assert ref() is None
+
+
+@pytest.mark.parametrize("n_failing", [1, 2, 3])
+@in_subprocess
+def test_failing_shutdowns_never_abort_the_process(n_failing: int) -> None:
+    """A Python exception in an unload/destructor path must not `terminate()`."""
+
+    class Dev(MinimalDevice):
+        def shutdown(self) -> None:
+            raise RuntimeError("shutdown failed")
+
+    core = CMMCore()
+    for i in range(n_failing):
+        core.loadPyDevice(f"D{i}", Dev(), DeviceType.GenericDevice)
+    core.initializeAllDevices()
+    with contextlib.suppress(Exception):
+        core.unloadAllDevices()
+    del core
+    gc.collect()
+
+
+@in_subprocess
+def test_error_in_is_capturing_does_not_abort_the_process() -> None:
+    """A raising device method must become an error, never a process abort."""
+
+    class Cam(MinimalCamera):
+        def is_capturing(self) -> bool:
+            raise RuntimeError("SDK gone")
+
+    core = CMMCore()
+    core.loadPyDevice("Cam", Cam(), DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    core.setCameraDevice("Cam")
+    with contextlib.suppress(Exception):
+        core.isSequenceRunning()
+
+
+@in_subprocess
+def test_insert_image_after_camera_unload_raises() -> None:
+    """A camera thread may outlive its device; using `insert_image` then must raise,
+    not touch freed memory."""
+
+    class Cam(MinimalCamera):
+        def start_sequence_acquisition(self, n, interval_ms, insert_image) -> None:
+            self.insert = insert_image
+
+        def stop_sequence_acquisition(self) -> None:
+            pass
+
+        def is_capturing(self) -> bool:
+            return False
+
+    core = CMMCore()
+    cam = Cam(width=4, height=2)
+    core.loadPyDevice("Cam", cam, DeviceType.CameraDevice)
+    core.initializeDevice("Cam")
+    core.setCameraDevice("Cam")
+    core.startSequenceAcquisition(10, 0, True)
+    core.unloadDevice("Cam")
+    with pytest.raises(Exception):  # noqa: B017 - any clean error is acceptable
+        cam.insert(np.zeros((2, 4), np.uint8), None)
+
+
+def test_failed_sequence_start_closes_the_auto_shutter() -> None:
+    """The bridge opens the auto-shutter (PrepareForAcq) before calling Python, so a
+    failed start must close it again."""
+
+    class Cam(MinimalCamera):
+        def start_sequence_acquisition(self, n, interval_ms, insert_image) -> None:
+            raise RuntimeError("SDK: trigger mode not supported")
+
+    core = CMMCore()
+    shutter = MinimalShutter()
+    core.loadPyDevice("S", shutter, DeviceType.ShutterDevice)
+    core.loadPyDevice("C", Cam(), DeviceType.CameraDevice)
+    core.initializeAllDevices()
+    core.setShutterDevice("S")
+    core.setCameraDevice("C")
+    core.setAutoShutter(True)
+    with pytest.raises(RuntimeError):
+        core.startSequenceAcquisition(5, 0, True)
+    assert not shutter.get_open()
+
+
+def test_instance_hub_peripherals_cannot_be_loaded_by_name() -> None:
+    """A `loadPyDevice` hub has no factory, so its listed peripherals can't be
+    loaded from its adapter (discovery never supplies the loaded device)."""
+    core = CMMCore()
+    core.loadPyDevice("Hub", MinimalHub(), DeviceType.HubDevice)
+    core.initializeDevice("Hub")
+    assert "HubCam" in core.getInstalledDevices("Hub")
+    with pytest.raises(RuntimeError, match="add_device_class"):
+        core.loadDevice("Cam", core.getDeviceLibrary("Hub"), "HubCam")
+
+
+def test_adapter_hub_peripherals_load_after_discovery() -> None:
+    """Like C++ hubs: a listed peripheral loads by name as a fresh device."""
+    ad = DeviceAdapter()
+    ad.add_device_class("Hub", MinimalHub, DeviceType.HubDevice, "")
+    ad.add_device_class("HubCam", MinimalCamera, DeviceType.CameraDevice, "")
+    core = CMMCore()
+    core.loadPyDeviceAdapter("Ad", ad)
+    core.loadDevice("Hub", "Ad", "Hub")
+    core.initializeDevice("Hub")
+    assert "HubCam" in core.getInstalledDevices("Hub")
+    core.loadDevice("Cam", "Ad", "HubCam")
+    core.setParentLabel("Cam", "Hub")
+    core.initializeDevice("Cam")
+    assert core.getDeviceType("Cam") == DeviceType.CameraDevice
+
+
+def test_adapter_hub_peripherals_load_before_discovery() -> None:
+    """Config files load peripherals by name before the hub is initialized."""
+    ad = DeviceAdapter()
+    ad.add_device_class("Hub", MinimalHub, DeviceType.HubDevice, "")
+    ad.add_device_class("HubCam", MinimalCamera, DeviceType.CameraDevice, "")
+    core = CMMCore()
+    core.loadPyDeviceAdapter("Ad", ad)
+    # same order as a config file: Device lines, Parent lines, then initialize
+    core.loadDevice("Hub", "Ad", "Hub")
+    core.loadDevice("Cam", "Ad", "HubCam")
+    core.setParentLabel("Cam", "Hub")
+    core.initializeAllDevices()
+    assert core.getParentLabel("Cam") == "Hub"
+    assert core.getDeviceType("Cam") == DeviceType.CameraDevice
