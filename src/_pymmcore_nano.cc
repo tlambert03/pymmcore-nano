@@ -264,8 +264,7 @@ PyObject *cmmerror_type(const CMMErrorTypes &types, int code) {
 
 class PyMMEventCallback : public MMEventCallback {
   public:
-    NB_TRAMPOLINE(MMEventCallback,
-                  15); // Total number of overridable virtual methods.
+    NB_TRAMPOLINE(MMEventCallback);
 
     void onPropertiesChanged() override { NB_OVERRIDE(onPropertiesChanged); }
 
