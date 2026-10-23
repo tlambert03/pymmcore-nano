@@ -824,7 +824,6 @@ Use by passing an instance to [`CMMCore.registerCallback`][pymmcore_nano.CMMCore
 
     //////////////////// Exceptions ////////////////////
 
-    // Register the exception with RuntimeError as the base
     // CMMError is a RuntimeError; errors with a code that pymmcore (SWIG) maps to
     // another builtin type are raised as a subclass of both (see cmmerror_type).
     nb::exception<CMMError> cmmError(m, "CMMError", PyExc_RuntimeError);
@@ -834,11 +833,11 @@ Use by passing an instance to [`CMMCore.registerCallback`][pymmcore_nano.CMMCore
             qualname.c_str(), nb::make_tuple(cmmError, nb::handle(builtin)).ptr(), nullptr));
         if (!type.is_valid())
             throw nb::python_error();
-        m.attr(name) = type; // the module keeps the type alive
-        return type.ptr();
+        m.attr(name) = type;
+        return type.release().ptr(); // cmmErrorTypes keeps a reference for good
     };
     static CMMErrorTypes cmmErrorTypes{
-        cmmError.ptr(),
+        cmmError.inc_ref().ptr(),
         cmmErrorSubclass("CMMValueError", PyExc_ValueError),
         cmmErrorSubclass("CMMOSError", PyExc_OSError),
         cmmErrorSubclass("CMMIndexError", PyExc_IndexError),
