@@ -64,6 +64,12 @@ def load_module_from_filepath(name: str, filepath: str) -> ModuleType:
     return module
 
 
+class _StubGen(StubGen):
+    def format_docstr(self, docstr: str, depth: int) -> str:
+        # PEP 257: summary line goes right after the opening quotes
+        return re.sub(r'^(\s*""")\n\s*', r"\1", super().format_docstr(docstr, depth))
+
+
 def build_stub(module_path: Path, output_path: str):
     module_path = module_path.resolve()
     module_name = module_path.stem.split(".")[0]
@@ -71,7 +77,7 @@ def build_stub(module_path: Path, output_path: str):
     with _windows_dll_dirs(module_path):
         module = load_module_from_filepath(module_name, str(module_path))
 
-    s = StubGen(module, include_docstrings=True, include_private=False)
+    s = _StubGen(module, include_docstrings=True, include_private=False)
     s.put(module)
     dest = Path(output_path)
     stub_txt = s.get()
@@ -85,8 +91,11 @@ def build_stub(module_path: Path, output_path: str):
     stub_txt = "from typing import Any\n" + stub_txt
     stub_txt = re.sub("types.CapsuleType", "Any", stub_txt)
 
-    # remove extra newlines and let ruff-format add them back
-    stub_txt = re.sub("\n\n", "\n", stub_txt)
+    # remove blank lines outside of docstrings and let ruff-format add them back
+    # (stubgen escapes any """ inside docstrings, so odd parts are docstrings)
+    parts = stub_txt.split('"""')
+    parts[::2] = [re.sub(r"\n+", "\n", p) for p in parts[::2]]
+    stub_txt = '"""'.join(parts)
 
     dest.write_text(stub_txt)
     ruff = Path(sys.executable).parent / "ruff"
