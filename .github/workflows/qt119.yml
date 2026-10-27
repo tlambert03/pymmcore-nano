@@ -36,3 +36,28 @@ jobs:
           Get-ChildItem -Recurse .venv-swig/Lib/site-packages/PyQt5/Qt5/bin/msvcp140.dll | Select-Object FullName,Length,@{n='ver';e={$_.VersionInfo.FileVersion}}
           Get-ChildItem -Recurse .venv-swig/Lib/site-packages/PyQt6/Qt6/bin/msvcp140*.dll -ErrorAction SilentlyContinue | Select-Object FullName,Length,@{n='ver';e={$_.VersionInfo.FileVersion}}
           Get-Item C:\Windows\System32\msvcp140.dll | Select-Object FullName,@{n='ver';e={$_.VersionInfo.FileVersion}}
+  wheel:
+    name: cibuildwheel (delvewheel on) + probe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+      - uses: pypa/cibuildwheel@v4.3
+        env:
+          CIBW_BUILD: cp312-win_amd64
+          CIBW_TEST_SKIP: "*"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - name: install wheel + Qt, list bundled DLLs
+        run: |
+          uv venv .venv-whl
+          $whl = Get-ChildItem wheelhouse/*.whl | Select-Object -First 1
+          uv pip install --python .venv-whl/Scripts/python.exe $whl.FullName PyQt5 PyQt6 numpy
+          Get-ChildItem -Recurse .venv-whl/Lib/site-packages/pymmcore_nano* -Include *.dll,*.pyd | ForEach-Object { "$($_.FullName) $($_.VersionInfo.FileVersion)" }
+      - name: probe wheel
+        run: .venv-whl/Scripts/python.exe scripts/_qt119_probe.py pymmcore_nano
