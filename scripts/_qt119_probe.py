@@ -31,6 +31,15 @@ CASES = {
         "c.loadDevice('Camera', 'DemoCamera', 'DCam'); c.initializeAllDevices(); c.setCameraDevice('Camera'); "
         "c.snapImage(); print('ok snap', c.getImage().shape); c.unloadAllDevices()"
     ),
+    "ctypes-preload system runtimes (pymmcore-gui style), then PyQt5, then DemoCamera + snap": (
+        "import ctypes, contextlib; "
+        "[contextlib.suppress(OSError).__enter__() or ctypes.WinDLL(d) for d in ('concrt140','msvcp140','msvcp140_1','msvcp140_2','vcruntime140','vcruntime140_1')]; "
+        "from PyQt5.QtWidgets import QApplication; app = QApplication([]); "
+        "import {m}; from mm_test_adapters import device_adapter_path; c = {m}.CMMCore(); "
+        "c.setDeviceAdapterSearchPaths([str(device_adapter_path())]); "
+        "c.loadDevice('Camera', 'DemoCamera', 'DCam'); c.initializeAllDevices(); c.setCameraDevice('Camera'); "
+        "c.snapImage(); print('ok snap', c.getImage().shape); c.unloadAllDevices()"
+    ),
     "pymmcore BEFORE PyQt5 (control)": (
         "import {m}; c = {m}.CMMCore(); from PyQt5.QtWidgets import QApplication; "
         "app = QApplication([]); print('ok', {m}.__version__)"
