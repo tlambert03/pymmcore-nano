@@ -1337,13 +1337,16 @@ MMCore will send notifications on internal events using this interface
 
 Multi-channel cameras return the first channel; see getImage(numChannel).
 
-Returns:
+Returns
+-------
     The image, with shape (height, width) and dtype uint8, uint16 or uint32
     (per getBytesPerPixel()), or with shape (height, width, 3) in RGB order for
     color cameras.
 
-Raises:
-    CMMError: when the camera returns no data.)doc" RGIL)
+Raises
+------
+CMMError
+    when the camera returns no data.)doc" RGIL)
         .def("getImage",
              [](PyCMMCore &self, unsigned channel) -> np_array {
                 return create_image_array(self, self.getImage(channel));
@@ -1352,10 +1355,13 @@ Raises:
 
 Single-channel cameras return their image regardless of numChannel.
 
-Args:
-    numChannel: the camera channel number.
+Parameters
+----------
+numChannel
+    the camera channel number.
 
-Returns:
+Returns
+-------
     The image, as for getImage().)doc" RGIL)
         .def("getImageWidth", &CMMCore::getImageWidth RGIL)
         .def("getImageHeight", &CMMCore::getImageHeight RGIL)
@@ -1743,14 +1749,18 @@ Returns:
             "pixels"_a,
             R"doc(Write an image to the SLM.
 
-Args:
-    slmLabel: the SLM device label.
-    pixels: uint8 array of shape (height, width), or (height, width, c) for color
-        SLMs, totalling getSLMWidth() * getSLMHeight() * getSLMBytesPerPixel()
-        bytes.
+Parameters
+----------
+slmLabel
+    the SLM device label.
+pixels
+    uint8 array of shape (height, width), or (height, width, c) for color SLMs,
+    totalling getSLMWidth() * getSLMHeight() * getSLMBytesPerPixel() bytes.
 
-Raises:
-    ValueError: if pixels has the wrong dtype, shape or size for this SLM.)doc" RGIL)
+Raises
+------
+ValueError
+    if pixels has the wrong dtype, shape or size for this SLM.)doc" RGIL)
         .def("setSLMPixelsTo",
              nb::overload_cast<const char *, unsigned char>(&CMMCore::setSLMPixelsTo),
              "slmLabel"_a,

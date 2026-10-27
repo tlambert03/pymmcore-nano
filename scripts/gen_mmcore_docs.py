@@ -1,4 +1,4 @@
-"""Generate a C++ header of Google-style docstrings from MMCore's doxygen comments.
+"""Generate a C++ header of numpydoc-style docstrings from MMCore's doxygen comments.
 
 Run by meson.build: `python gen_mmcore_docs.py OUTPUT.h MMCORE_FILES...`
 (only MMCore.cpp and MMCore.h are read from MMCORE_FILES).
@@ -6,6 +6,9 @@ Run by meson.build: `python gen_mmcore_docs.py OUTPUT.h MMCORE_FILES...`
 Docs live in MMCore.cpp, but python argument names come from the MMCore.h
 declarations, so each entry is keyed on the header names, e.g.
 "setState(stateDeviceLabel,state)", and @param names are renamed to match.
+
+The python return type isn't known until the module is built, so Returns
+entries have no type line here; build_stubs.py adds it from the signature.
 """
 
 from __future__ import annotations
@@ -21,12 +24,13 @@ DEF = re.compile(
 )
 # name(args)  (declarations in MMCore.h)
 DECL = re.compile(r"\b(\w+)\s*\(([^()]*)\)")
+# doxygen tag -> numpydoc section (other tags go in Notes)
 SECTIONS = {
-    "param": "Args",
+    "param": "Parameters",
     "return": "Returns",
     "returns": "Returns",
     "throws": "Raises",
-    "deprecated": "Deprecated",
+    "deprecated": "Warnings",
 }
 
 
@@ -42,18 +46,24 @@ def params(args: str) -> tuple[tuple[str, str], ...] | None:
 
 
 def render(comment: str, rename: dict[str, str]) -> str:
-    """Convert a doxygen comment body to a Google-style docstring."""
+    """Convert a doxygen comment body to a numpydoc-style docstring."""
     text = re.sub(r"^[ \t]*\*+ ?", "", comment, flags=re.M)
     text = re.sub(r"\\brief\s+|\\p\s+|[ \t]+$", "", text, flags=re.M)
     body, *tags = re.split(r"^\s*@(\w+)\s*", text.strip(), flags=re.M)
     sections: dict[str, list[str]] = {title: [] for title in SECTIONS.values()}
     for tag, content in zip(tags[::2], tags[1::2], strict=True):
-        desc = " ".join(content.split())
-        if tag in ("param", "throws"):  # "name desc" -> "name: desc"
-            first, _, rest = desc.partition(" ")
-            desc = f"{rename.get(first, first)}: {rest}"
-        if desc:
-            sections.setdefault(SECTIONS.get(tag, tag.title()), []).append(desc)
+        if not (desc := " ".join(content.split())):
+            continue
+        if tag in ("param", "throws"):  # "name desc" -> name, then indented desc
+            name, _, desc = desc.partition(" ")
+            entry = "\n".join(
+                filter(None, [rename.get(name, name), fill(desc, "    ")])
+            )
+        elif tag in ("return", "returns"):  # build_stubs.py adds the type line
+            entry = fill(desc, "    ")
+        else:
+            entry = fill(f"{tag.title()}: {desc}")
+        sections.setdefault(SECTIONS.get(tag, "Notes"), []).append(entry)
 
     paras = re.split(r"\n\s*\n", textwrap.dedent(body).strip())
     # PEP 257: first sentence on its own summary line.  It ends at ". " (but not
@@ -66,17 +76,17 @@ def render(comment: str, rename: dict[str, str]) -> str:
     out += [p if re.search(r"^[-*\s]", p, re.M) else fill(p) for p in paras[1:]]
     for title, entries in sections.items():
         if entries:
-            out.append(f"{title}:\n" + "\n".join(fill(e, "    ") for e in entries))
+            out.append(f"{title}\n{'-' * len(title)}\n" + "\n".join(entries))
     return "\n\n".join(filter(None, out))
 
 
 def fill(text: str, indent: str = "") -> str:
-    """Wrap to 80 columns (88 once indented in a class), hanging indent for args."""
+    """Wrap to 80 columns (88 once indented in a class)."""
     return textwrap.fill(
         " ".join(text.split()),
         80,
         initial_indent=indent,
-        subsequent_indent=indent * 2,
+        subsequent_indent=indent,
         break_long_words=False,
         break_on_hyphens=False,
     )
