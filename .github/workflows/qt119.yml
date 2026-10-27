@@ -23,7 +23,10 @@ jobs:
         run: |
           uv venv .venv-whl
           $whl = Get-ChildItem wheelhouse/*.whl | Select-Object -First 1
-          uv pip install --python .venv-whl/Scripts/python.exe $whl.FullName PyQt5 PyQt6 numpy
+          uv pip install --python .venv-whl/Scripts/python.exe $whl.FullName PyQt5 PyQt6 numpy "mm-test-adapters~=75.0"
           Get-ChildItem -Recurse .venv-whl/Lib/site-packages/pymmcore_nano* -Include *.dll,*.pyd | ForEach-Object { "$($_.FullName) $($_.VersionInfo.FileVersion)" }
+      - name: runtime versions (system vs PyQt5 vs PyQt6 vs bundled)
+        run: |
+          foreach ($f in @("C:\Windows\System32\msvcp140.dll", (Get-ChildItem .venv-whl/Lib/site-packages/PyQt5/Qt5/bin/msvcp140.dll).FullName, (Get-ChildItem .venv-whl/Lib/site-packages/PyQt6/Qt6/bin/msvcp140.dll).FullName, (Get-ChildItem .venv-whl/Lib/site-packages/pymmcore_nano.libs/msvcp140*.dll).FullName)) { "$((Get-Item $f).VersionInfo.FileVersion)  $f" }
       - name: probe wheel
         run: .venv-whl/Scripts/python.exe scripts/_qt119_probe.py pymmcore_nano

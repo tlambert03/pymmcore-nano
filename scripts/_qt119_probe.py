@@ -17,6 +17,20 @@ CASES = {
         "print('dll dir', d, os.path.exists(os.path.join(d, 'msvcp140.dll'))); os.add_dll_directory(d); "
         "import {m}; c = {m}.CMMCore(); print('ok', {m}.__version__)"
     ),
+    "PyQt5 first, then load DemoCamera + snap (adapters use the *system* runtime)": (
+        "from PyQt5.QtWidgets import QApplication; app = QApplication([]); "
+        "import {m}; from mm_test_adapters import device_adapter_path; c = {m}.CMMCore(); "
+        "c.setDeviceAdapterSearchPaths([str(device_adapter_path())]); "
+        "c.loadDevice('Camera', 'DemoCamera', 'DCam'); c.initializeAllDevices(); c.setCameraDevice('Camera'); "
+        "c.snapImage(); print('ok snap', c.getImage().shape); c.unloadAllDevices()"
+    ),
+    "PyQt6 first, then load DemoCamera + snap": (
+        "from PyQt6.QtWidgets import QApplication; app = QApplication([]); "
+        "import {m}; from mm_test_adapters import device_adapter_path; c = {m}.CMMCore(); "
+        "c.setDeviceAdapterSearchPaths([str(device_adapter_path())]); "
+        "c.loadDevice('Camera', 'DemoCamera', 'DCam'); c.initializeAllDevices(); c.setCameraDevice('Camera'); "
+        "c.snapImage(); print('ok snap', c.getImage().shape); c.unloadAllDevices()"
+    ),
     "pymmcore BEFORE PyQt5 (control)": (
         "import {m}; c = {m}.CMMCore(); from PyQt5.QtWidgets import QApplication; "
         "app = QApplication([]); print('ok', {m}.__version__)"
