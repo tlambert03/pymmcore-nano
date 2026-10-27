@@ -3,39 +3,6 @@ on:
   push:
     branches: [probe-qt-119]
 jobs:
-  probe:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
-        with:
-          python-version: "3.12"
-      - uses: TheMrMilchmann/setup-msvc-dev@v4
-        with:
-          arch: x64
-      - name: nano venv (built from this checkout)
-        run: |
-          uv venv .venv-nano
-          uv pip install --python .venv-nano/Scripts/python.exe . PyQt5 PyQt6 numpy
-          uv pip list --python .venv-nano/Scripts/python.exe | Select-String -Pattern "pymmcore|PyQt"
-      - name: swig venv (PyPI pymmcore)
-        run: |
-          uv venv .venv-swig
-          uv pip install --python .venv-swig/Scripts/python.exe pymmcore PyQt5 PyQt6 numpy
-          uv pip list --python .venv-swig/Scripts/python.exe | Select-String -Pattern "pymmcore|PyQt"
-      - name: probe nano
-        run: .venv-nano/Scripts/python.exe scripts/_qt119_probe.py pymmcore_nano
-      - name: probe swig
-        if: always()
-        run: .venv-swig/Scripts/python.exe scripts/_qt119_probe.py pymmcore
-      - name: which msvcp140 does each wheel carry
-        if: always()
-        run: |
-          Get-ChildItem -Recurse .venv-nano/Lib/site-packages/pymmcore_nano* -Include *.dll,*.pyd | Select-Object FullName,Length
-          Get-ChildItem -Recurse .venv-swig/Lib/site-packages/pymmcore* -Include *.dll,*.pyd | Select-Object FullName,Length
-          Get-ChildItem -Recurse .venv-swig/Lib/site-packages/PyQt5/Qt5/bin/msvcp140.dll | Select-Object FullName,Length,@{n='ver';e={$_.VersionInfo.FileVersion}}
-          Get-ChildItem -Recurse .venv-swig/Lib/site-packages/PyQt6/Qt6/bin/msvcp140*.dll -ErrorAction SilentlyContinue | Select-Object FullName,Length,@{n='ver';e={$_.VersionInfo.FileVersion}}
-          Get-Item C:\Windows\System32\msvcp140.dll | Select-Object FullName,@{n='ver';e={$_.VersionInfo.FileVersion}}
   wheel:
     name: cibuildwheel (delvewheel on) + probe
     runs-on: windows-latest
@@ -49,7 +16,6 @@ jobs:
       - uses: pypa/cibuildwheel@v4.3
         env:
           CIBW_BUILD: cp312-win_amd64
-          CIBW_TEST_SKIP: "*"
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.12"
